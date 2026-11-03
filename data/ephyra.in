@@ -1,0 +1,8 @@
+#!@PYTHON@
+import sys
+
+sys.path.insert(1, "@PYTHONDIR@")
+
+from ephyra.main import main  # noqa: E402
+
+sys.exit(main(sys.argv))

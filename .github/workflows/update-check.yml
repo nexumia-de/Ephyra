@@ -1,0 +1,18 @@
+# Weekly check for newer module versions (pull request) and a newer GNOME
+# runtime (issue). See phosh-toolkit docs/dependency-updates.md.
+name: Update check
+on:
+  schedule:
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+jobs:
+  update-check:
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    uses: nexumia-de/phosh-toolkit/.github/workflows/update-check.yml@main
+    with:
+      manifest: de.nexumia.Ephyra.yml
+    secrets:
+      UPDATE_TOKEN: ${{ secrets.UPDATE_TOKEN }}

@@ -1,0 +1,16 @@
+# Flatpak build output
+.flatpak-builder/
+build-dir/
+repo/
+*.flatpak
+nightly-manifest.json
+# Screenshots
+node_modules/
+package-lock.json
+/shot.png
+/wide.png
+/shots/
+# Python
+__pycache__/
+_build/
+.pytest_cache/

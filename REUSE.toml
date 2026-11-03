@@ -1,0 +1,25 @@
+# Licence of every file, for "reuse lint" (https://reuse.software).
+# Licence texts are in LICENSES/; the Flatpak bundles no third-party
+# modules (docs/dependencies.md).
+version = 1
+
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 suitably"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# AppStream metadata is CC0 so stores and distributions can reuse it.
+[[annotations]]
+path = "data/*.metainfo.xml"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 suitably"
+SPDX-License-Identifier = "CC0-1.0"
+
+# The demo library: invented titles and images drawn by
+# build-aux/make-demo-data.py.
+[[annotations]]
+path = "tests/data/demo/**"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 suitably"
+SPDX-License-Identifier = "CC0-1.0"

@@ -1,0 +1,27 @@
+# Changelog check, weekly release pull request and release tag
+# (docs/release-channels.md, phosh-toolkit docs/releases.md).
+name: Release
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+  # Monday morning: a release pull request if there are fragments.
+  schedule:
+    - cron: '41 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release (default from the changelog fragments)
+        required: false
+jobs:
+  release:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: nexumia-de/phosh-toolkit/.github/workflows/release.yml@main
+    with:
+      version: ${{ inputs.version }}
+    secrets:
+      # Contents and pull requests write on this repository.
+      RELEASE_TOKEN: ${{ secrets.PUBLISH_TOKEN }}

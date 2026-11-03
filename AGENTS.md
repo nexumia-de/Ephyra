@@ -1,0 +1,51 @@
+@../phosh-toolkit/AGENTS.md
+
+# Ephyra
+
+Jellyfin client for Phosh phones (and the desktop), in the look of
+Jellyfin's own apps. The shared rules in ../phosh-toolkit/AGENTS.md apply
+as well, with the exceptions below.
+
+## Language
+
+- Reply to the owner in English, unless the owner asks for another
+  language; then keep using that language until told otherwise.
+- Everything in the repository stays English (code, docs, commits,
+  pull requests, issues).
+
+## Design: Jellyfin's look
+
+- The owner wants Ephyra to look like Jellyfin's apps. This replaces the
+  toolkit's "stock look, no overridden accent colour" rule for this app
+  only: [decision](docs/decisions/jellyfin-style.md).
+- Follow [docs/design.md](docs/design.md): dark first, Jellyfin's blue
+  accent through libadwaita's variables, poster cards with played
+  badges and progress, backdrops on detail pages. Everything else of the
+  toolkit's design and adaptive rules still applies (360×720, no
+  horizontal scrolling, style classes, symbolic icons, tooltips).
+- Never use Jellyfin's logo, wordmark or icons, and do not copy code or
+  assets from Jellyfin's repositories (GPL-2.0). Colour values and API
+  facts may be used.
+
+## App rules
+
+- App id: `de.nexumia.Ephyra`.
+- Plan: work items are [issues](https://github.com/nexumia-de/ephyra/issues)
+  in [milestones](https://github.com/nexumia-de/ephyra/milestones); goals
+  per milestone are in [docs/roadmap.md](docs/roadmap.md).
+- Connection: local address on the owner's home Wi-Fi, remote address
+  elsewhere, the remote one behind mutual TLS. Read
+  [docs/connection.md](docs/connection.md) before touching `route.py`,
+  `connection.py`, `http.py`, `tls.py` or `proxy.py`. Never put the
+  access token into a URL, a log line or a file outside the keyring.
+- Playback goes through the local media proxy:
+  [docs/playback.md](docs/playback.md).
+- Jellyfin API facts come from the server source
+  (`github.com/jellyfin/jellyfin`, `Jellyfin.Api/Controllers`); the API
+  hosts are blocked in the cloud environment
+  ([dev environment](docs/dev-environment.md)). Ephyra needs server 10.9
+  or newer.
+- Screenshots and UI tests use the demo library (`EPHYRA_DEMO`,
+  `ephyra/demo.py`, `tests/data/demo`), never a real server.
+- Run PyGObject code with `/usr/bin/python3.12` on the cloud host; the
+  default `python3` has no `gi`.

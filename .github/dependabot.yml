@@ -1,0 +1,12 @@
+# Weekly pull requests for new versions of the GitHub Actions used here.
+# Flatpak modules are updated by the update-check workflow instead (see
+# phosh-toolkit docs/dependency-updates.md).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

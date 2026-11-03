@@ -1,0 +1,287 @@
+"""A small stand-in for a Jellyfin server that serves the recorded demo
+library (tests/data/demo). The store screenshots use it
+(EPHYRA_DEMO=<dir>), and the tests run the client, the proxy and mutual
+TLS against it. Only the endpoints Ephyra calls are implemented.
+No GTK."""
+import json
+import re
+import ssl
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
+
+TOKEN = "demo-token"
+PASSWORD = "demo"
+
+
+class DemoServer:
+    def __init__(self, directory, tls=None):
+        """tls: (server cert file, key file, CA file for client
+        certificates) for HTTPS that requires a client certificate."""
+        self.directory = Path(directory)
+        self.library = json.loads((self.directory / "library.json").read_text())
+        self.items = {i["Id"]: i for i in self.library["items"]}
+        self.reports = []      # (path, payload) of /Sessions/Playing*
+        self.requests = []     # (method, path, headers) seen
+        self.media = bytes(range(256)) * 4096   # 1 MiB for range tests
+        server = self
+
+        class Handler(_Handler):
+            owner = server
+
+        self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.httpd.daemon_threads = True
+        self.scheme = "http"
+        if tls:
+            cert, key, ca = tls
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            context.load_cert_chain(cert, key)
+            context.load_verify_locations(ca)
+            context.verify_mode = ssl.CERT_REQUIRED
+            self.httpd.socket = context.wrap_socket(self.httpd.socket,
+                                                    server_side=True)
+            self.scheme = "https"
+
+    @property
+    def url(self):
+        host, port = self.httpd.server_address
+        return f"{self.scheme}://{host}:{port}"
+
+    def start(self):
+        threading.Thread(target=self.httpd.serve_forever, daemon=True,
+                         name="ephyra-demo").start()
+        return self
+
+    def stop(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+
+    # --- queries -------------------------------------------------------
+
+    def children(self, parent_id, recursive=False, types=None):
+        out = []
+        for item in self.library["items"]:
+            if item.get("ParentId") == parent_id:
+                out.append(item)
+                if recursive and item.get("IsFolder"):
+                    out.extend(self.children(item["Id"], True))
+        if types:
+            wanted = set(types.split(","))
+            out = [i for i in out if i["Type"] in wanted]
+        return out
+
+
+ROUTES = []
+
+
+def route(method, pattern):
+    def wrap(fn):
+        ROUTES.append((method, re.compile(pattern + "$"), fn))
+        return fn
+    return wrap
+
+
+class _Handler(BaseHTTPRequestHandler):
+    owner = None
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        self._dispatch("GET")
+
+    def do_HEAD(self):
+        self._dispatch("HEAD")
+
+    def do_POST(self):
+        self._dispatch("POST")
+
+    def do_DELETE(self):
+        self._dispatch("DELETE")
+
+    def _dispatch(self, method):
+        parts = urlsplit(self.path)
+        query = {k.lower(): v[-1] for k, v in parse_qs(parts.query).items()}
+        length = int(self.headers.get("Content-Length") or 0)
+        body = self.rfile.read(length) if length else b""
+        self.owner.requests.append((method, parts.path, dict(self.headers)))
+        lookup = "GET" if method == "HEAD" else method
+        for m, pattern, fn in ROUTES:
+            match = pattern.match(parts.path)
+            if m == lookup and match:
+                public = fn.__name__ in ("public_info", "authenticate")
+                if not public and f'Token="{TOKEN}"' not in self.headers.get(
+                        "Authorization", ""):
+                    return self._json(None, 401)
+                payload = json.loads(body) if body else None
+                return fn(self, query, payload, *match.groups())
+        self._json(None, 404)
+
+    def _json(self, data, status=200):
+        body = b"" if data is None else json.dumps(data).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def _bytes(self, data, content_type):
+        start, end, status = 0, len(data) - 1, 200
+        match = re.match(r"bytes=(\d*)-(\d*)", self.headers.get("Range", ""))
+        if match and (match.group(1) or match.group(2)):
+            if match.group(1):
+                start = int(match.group(1))
+                end = int(match.group(2)) if match.group(2) else end
+            else:
+                start = len(data) - int(match.group(2))
+            status = 206
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Length", str(end - start + 1))
+        if status == 206:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{len(data)}")
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(data[start:end + 1])
+
+
+@route("GET", r"/System/Info/Public")
+def public_info(h, q, p):
+    h._json(h.owner.library["server"])
+
+
+@route("POST", r"/Users/AuthenticateByName")
+def authenticate(h, q, p):
+    user = h.owner.library["user"]
+    if not p or p.get("Username", "").lower() != user["Name"].lower() \
+            or p.get("Pw") != PASSWORD:
+        return h._json(None, 401)
+    h._json({"AccessToken": TOKEN, "User": user,
+             "ServerId": h.owner.library["server"]["Id"]})
+
+
+@route("POST", r"/Sessions/Logout")
+def logout(h, q, p):
+    h._json(None, 204)
+
+
+@route("GET", r"/UserViews")
+def views(h, q, p):
+    items = [i for i in h.owner.library["items"] if i["Type"] == "CollectionFolder"]
+    h._json({"Items": items, "TotalRecordCount": len(items)})
+
+
+@route("GET", r"/UserItems/Resume")
+def resume(h, q, p):
+    items = [h.owner.items[i] for i in h.owner.library["resume"]]
+    h._json({"Items": items, "TotalRecordCount": len(items)})
+
+
+@route("GET", r"/Shows/NextUp")
+def next_up(h, q, p):
+    items = [h.owner.items[i] for i in h.owner.library["next_up"]]
+    if q.get("seriesid"):
+        items = [i for i in items if i.get("SeriesId") == q["seriesid"]]
+    h._json({"Items": items, "TotalRecordCount": len(items)})
+
+
+@route("GET", r"/Items/Latest")
+def latest(h, q, p):
+    view = h.owner.items.get(q.get("parentid"), {})
+    types = {"movies": "Movie", "tvshows": "Series",
+             "music": "MusicAlbum"}.get(view.get("CollectionType"))
+    items = h.owner.children(view.get("Id"), True, types)
+    h._json(items[:int(q.get("limit", 12))])
+
+
+@route("GET", r"/Items")
+def items(h, q, p):
+    owner = h.owner
+    if q.get("searchterm"):
+        term = q["searchterm"].lower()
+        found = [i for i in owner.library["items"]
+                 if term in i["Name"].lower() and i["Type"] in
+                 ("Movie", "Series", "MusicAlbum", "Episode", "Audio")]
+    else:
+        found = owner.children(q.get("parentid"),
+                               q.get("recursive") == "true",
+                               q.get("includeitemtypes"))
+        found.sort(key=lambda i: (i.get("IndexNumber") or 0, i["Name"]))
+    start, limit = int(q.get("startindex", 0)), int(q.get("limit", 100))
+    h._json({"Items": found[start:start + limit],
+             "TotalRecordCount": len(found), "StartIndex": start})
+
+
+@route("GET", r"/Items/([0-9a-f]+)")
+def item(h, q, p, item_id):
+    if item_id not in h.owner.items:
+        return h._json(None, 404)
+    h._json(h.owner.items[item_id])
+
+
+@route("GET", r"/Shows/([0-9a-f]+)/Seasons")
+def seasons(h, q, p, series_id):
+    found = h.owner.children(series_id, types="Season")
+    h._json({"Items": found, "TotalRecordCount": len(found)})
+
+
+@route("GET", r"/Shows/([0-9a-f]+)/Episodes")
+def episodes(h, q, p, series_id):
+    found = h.owner.children(q.get("seasonid"), types="Episode")
+    h._json({"Items": found, "TotalRecordCount": len(found)})
+
+
+@route("GET", r"/Items/([0-9a-f]+)/Images/(\w+)")
+def image(h, q, p, item_id, kind):
+    path = h.owner.directory / "images" / f"{item_id}-{kind}.jpg"
+    if not path.is_file():
+        return h._json(None, 404)
+    h._bytes(path.read_bytes(), "image/jpeg")
+
+
+@route("POST", r"/Items/([0-9a-f]+)/PlaybackInfo")
+def playback_info(h, q, p, item_id):
+    item = h.owner.items[item_id]
+    h._json({"PlaySessionId": "demo-session", "MediaSources": [{
+        "Id": item_id, "Container": "mkv", "SupportsDirectPlay": True,
+        "SupportsDirectStream": True, "SupportsTranscoding": True,
+        "RunTimeTicks": item.get("RunTimeTicks"), "ETag": "demo"}]})
+
+
+@route("GET", r"/(?:Videos|Audio)/([0-9a-f]+)/stream")
+def stream(h, q, p, item_id):
+    h._bytes(h.owner.media, "video/x-matroska")
+
+
+@route("POST", r"(/Sessions/Playing(?:/Progress|/Stopped)?)")
+def report(h, q, p, path):
+    h.owner.reports.append((path, p))
+    h._json(None, 204)
+
+
+@route("POST", r"/UserPlayedItems/([0-9a-f]+)")
+def played(h, q, p, item_id):
+    h.owner.items[item_id]["UserData"]["Played"] = True
+    h._json(h.owner.items[item_id]["UserData"])
+
+
+@route("DELETE", r"/UserPlayedItems/([0-9a-f]+)")
+def unplayed(h, q, p, item_id):
+    h.owner.items[item_id]["UserData"]["Played"] = False
+    h._json(h.owner.items[item_id]["UserData"])
+
+
+@route("POST", r"/UserFavoriteItems/([0-9a-f]+)")
+def favorite(h, q, p, item_id):
+    h.owner.items[item_id]["UserData"]["IsFavorite"] = True
+    h._json(h.owner.items[item_id]["UserData"])
+
+
+@route("DELETE", r"/UserFavoriteItems/([0-9a-f]+)")
+def unfavorite(h, q, p, item_id):
+    h.owner.items[item_id]["UserData"]["IsFavorite"] = False
+    h._json(h.owner.items[item_id]["UserData"])

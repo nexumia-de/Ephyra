@@ -1,0 +1,3 @@
+# Written by meson from config.py.in; see meson_options.txt.
+APP_ID = "@APP_ID@"
+BUILD_LABEL = "@BUILD_LABEL@"

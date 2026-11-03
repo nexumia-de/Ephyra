@@ -1,0 +1,22 @@
+# Release automation: changelog fragments, release pull request and
+# screenshots (phosh-toolkit docs/releases.md, docs/release-channels.md).
+metainfo = "data/de.nexumia.Ephyra.metainfo.xml"
+version-files = ["meson.build", "ephyra/__init__.py"]
+
+# Taken by CI from the built Flatpak at 360×720 and 1000×700, light and
+# dark, signed in to the recorded demo library in tests/data/demo, which
+# the app serves itself (EPHYRA_DEMO, docs/release-channels.md). No
+# network is used.
+[screenshots]
+env = { EPHYRA_DEMO = "{root}/tests/data/demo", TZ = "Europe/Berlin" }
+expose = ["{root}/tests/data/demo"]
+delay = 4
+
+[[screenshots.shot]]
+name = "home"
+caption = "Continue watching, next episodes and the newest movies"
+
+[[screenshots.shot]]
+name = "movies"
+caption = "A movie library"
+actions = ["app.show-view(1)"]

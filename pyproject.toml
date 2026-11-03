@@ -1,0 +1,4 @@
+# Only tool configuration; the app is built and installed with meson.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]

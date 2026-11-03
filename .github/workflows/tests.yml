@@ -1,0 +1,34 @@
+name: Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install dependencies
+        run: |
+          apt=(sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=120)
+          "${apt[@]}" update -q
+          "${apt[@]}" install -y -q --no-install-recommends \
+            python3-pytest python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 \
+            gir1.2-soup-3.0 gir1.2-secret-1 glib-networking \
+            libgtk-4-media-gstreamer gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good openssl xvfb xauth \
+            appstream desktop-file-utils
+      - name: Validate metadata
+        run: |
+          desktop-file-validate data/*.desktop
+          appstreamcli validate --no-net data/*.metainfo.xml
+          grep -Eiq '^X-Purism-FormFactor=.*mobile;' data/*.desktop
+      # test_ui.py drives the real widgets and needs a display.
+      - name: Run tests
+        run: xvfb-run -a /usr/bin/python3 -m pytest -v
