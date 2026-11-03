@@ -1,0 +1,22 @@
+name: Flatpak
+on:
+  push:
+    branches: [main]
+    # v<version> publishes the stable app (docs/release-channels.md).
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+jobs:
+  flatpak:
+    permissions:
+      contents: write
+    uses: nexumia-de/phosh-toolkit/.github/workflows/flatpak.yml@main
+    with:
+      manifest: de.nexumia.Ephyra.yml
+      # Tags publish Ephyra, every push to main publishes Ephyra (Nightly);
+      # nexumia-de/phosh-apps serves both (docs/release-channels.md).
+      release: true
+      nightly: true
+      publish-repo: nexumia-de/phosh-apps
+    secrets:
+      PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}

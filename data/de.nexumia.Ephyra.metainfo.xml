@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>de.nexumia.Ephyra</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-or-later</project_license>
+  <name>Ephyra</name>
+  <summary>Watch your Jellyfin library</summary>
+  <description>
+    <p>
+      Ephyra plays the movies, shows and music of your own Jellyfin
+      server on a Phosh phone and on the desktop.
+    </p>
+    <ul>
+      <li>Continue watching, next episodes and the newest items of every library</li>
+      <li>Resume where you stopped; progress is kept on the server</li>
+      <li>At home it talks to the server directly, elsewhere through its public address</li>
+      <li>Works with servers that require a client certificate</li>
+      <li>The server converts videos the phone can't play</li>
+    </ul>
+    <p>
+      Ephyra is an independent project and not affiliated with the
+      Jellyfin project.
+    </p>
+  </description>
+  <developer id="de.nexumia">
+    <name>suitably</name>
+  </developer>
+  <url type="homepage">https://github.com/nexumia-de/ephyra</url>
+  <url type="bugtracker">https://github.com/nexumia-de/ephyra/issues</url>
+  <url type="vcs-browser">https://github.com/nexumia-de/ephyra</url>
+  <url type="donation">https://liberapay.com/suitably</url>
+  <launchable type="desktop-id">de.nexumia.Ephyra.desktop</launchable>
+  <content_rating type="oars-1.1"/>
+  <branding>
+    <color type="primary" scheme_preference="light">#8fd6ef</color>
+    <color type="primary" scheme_preference="dark">#00455c</color>
+  </branding>
+  <categories>
+    <category>AudioVideo</category>
+    <category>Video</category>
+  </categories>
+  <recommends>
+    <display_length compare="ge">360</display_length>
+  </recommends>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+    <internet>always</internet>
+  </supports>
+  <releases>
+    <release version="0.1.0" date="2026-11-03">
+      <description>
+        <p>First version: sign in to a Jellyfin server, browse the libraries and play movies, episodes and music.</p>
+      </description>
+    </release>
+  </releases>
+</component>

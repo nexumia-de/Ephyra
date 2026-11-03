@@ -1,0 +1,41 @@
+name: Bug report
+description: Something in Ephyra does not work as expected.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Ephyra
+        2. …
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From About Ephyra, e.g. "0.2.0" or "0.2.0 (main · 8534d2c)".
+    validations:
+      required: true
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      options:
+        - Phone (Phosh)
+        - Desktop
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: Output of `EPHYRA_DEBUG=1 flatpak run de.nexumia.Ephyra`, if available.
+      render: text

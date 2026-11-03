@@ -1,0 +1,5 @@
+option('profile', type: 'combo', choices: ['default', 'development'],
+  value: 'default',
+  description: 'development builds the nightly app de.nexumia.Ephyra.Devel')
+option('build_label', type: 'string', value: '',
+  description: 'Source of a nightly build for the About dialog, e.g. "main · 8534d2c"')

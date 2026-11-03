@@ -1,0 +1,905 @@
+{
+ "server": {
+  "Id": "54c3b2a93311e46257a9f90b108c0845",
+  "ServerName": "Home Media",
+  "Version": "10.11.0",
+  "ProductName": "Jellyfin Server",
+  "StartupWizardCompleted": true
+ },
+ "user": {
+  "Id": "b658b86ca6ec779cba6585834d4a45b4",
+  "Name": "Robin"
+ },
+ "resume": [
+  "97ad993bf16905897954eb9e2fcd41cb"
+ ],
+ "next_up": [
+  "6401c0cc04f9062090986291ee4b412f"
+ ],
+ "items": [
+  {
+   "Id": "80662e1f485e79d07ef4973f6b1b9f88",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Movies",
+   "Type": "CollectionFolder",
+   "CollectionType": "movies",
+   "IsFolder": true,
+   "ImageTags": {
+    "Primary": "eef4a665"
+   }
+  },
+  {
+   "Id": "6201ef1b62afc8279dbe20aaf6dcf3be",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Shows",
+   "Type": "CollectionFolder",
+   "CollectionType": "tvshows",
+   "IsFolder": true,
+   "ImageTags": {
+    "Primary": "e45b2688"
+   }
+  },
+  {
+   "Id": "47dcbd834e669233d7eb8a51456ed217",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Music",
+   "Type": "CollectionFolder",
+   "CollectionType": "music",
+   "IsFolder": true,
+   "ImageTags": {
+    "Primary": "6d0efd9b"
+   }
+  },
+  {
+   "Id": "97ad993bf16905897954eb9e2fcd41cb",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 24000000000,
+    "IsFavorite": false,
+    "PlayedPercentage": 35.7
+   },
+   "Name": "The Lighthouse Keeper",
+   "Type": "Movie",
+   "MediaType": "Video",
+   "ParentId": "80662e1f485e79d07ef4973f6b1b9f88",
+   "ProductionYear": 2021,
+   "RunTimeTicks": 67200000000,
+   "Overview": "A keeper on a remote island finds letters that someone keeps leaving at his door.",
+   "OfficialRating": "12",
+   "CommunityRating": 6.1,
+   "Genres": [
+    "Drama"
+   ],
+   "PrimaryImageAspectRatio": 0.6667,
+   "ImageTags": {
+    "Primary": "4817a114"
+   },
+   "BackdropImageTags": [
+    "38921378"
+   ]
+  },
+  {
+   "Id": "354fafa061573a9062bef00af8d4a9b2",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Northern Lights",
+   "Type": "Movie",
+   "MediaType": "Video",
+   "ParentId": "80662e1f485e79d07ef4973f6b1b9f88",
+   "ProductionYear": 2019,
+   "RunTimeTicks": 58800000000,
+   "Overview": "Two sisters drive across Finland in winter to scatter their father's ashes.",
+   "OfficialRating": "12",
+   "CommunityRating": 6.4,
+   "Genres": [
+    "Drama"
+   ],
+   "PrimaryImageAspectRatio": 0.6667,
+   "ImageTags": {
+    "Primary": "2889a397"
+   },
+   "BackdropImageTags": [
+    "3e125072"
+   ]
+  },
+  {
+   "Id": "54f399a19b3f0c240a7f278afb40e203",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": true,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Paper Boats",
+   "Type": "Movie",
+   "MediaType": "Video",
+   "ParentId": "80662e1f485e79d07ef4973f6b1b9f88",
+   "ProductionYear": 2023,
+   "RunTimeTicks": 54000000000,
+   "Overview": "A summer in a small harbour town, told by the children who build boats from old newspapers.",
+   "OfficialRating": "12",
+   "CommunityRating": 6.7,
+   "Genres": [
+    "Drama"
+   ],
+   "PrimaryImageAspectRatio": 0.6667,
+   "ImageTags": {
+    "Primary": "fbb91666"
+   },
+   "BackdropImageTags": [
+    "54d5b0ef"
+   ]
+  },
+  {
+   "Id": "135ae83062e850e4d710fc5ee5bb5401",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Salt and Iron",
+   "Type": "Movie",
+   "MediaType": "Video",
+   "ParentId": "80662e1f485e79d07ef4973f6b1b9f88",
+   "ProductionYear": 2018,
+   "RunTimeTicks": 72600000000,
+   "Overview": "The last foundry of a mining town gets one more order.",
+   "OfficialRating": "12",
+   "CommunityRating": 7.0,
+   "Genres": [
+    "Drama"
+   ],
+   "PrimaryImageAspectRatio": 0.6667,
+   "ImageTags": {
+    "Primary": "b0813d7f"
+   },
+   "BackdropImageTags": [
+    "7b4c9a67"
+   ]
+  },
+  {
+   "Id": "c7dd0eccb383eec6cb4469b79a118f9c",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "A Quiet Orbit",
+   "Type": "Movie",
+   "MediaType": "Video",
+   "ParentId": "80662e1f485e79d07ef4973f6b1b9f88",
+   "ProductionYear": 2024,
+   "RunTimeTicks": 63000000000,
+   "Overview": "An astronaut alone on a station talks to the ground crew for 90 days.",
+   "OfficialRating": "12",
+   "CommunityRating": 7.3,
+   "Genres": [
+    "Drama"
+   ],
+   "PrimaryImageAspectRatio": 0.6667,
+   "ImageTags": {
+    "Primary": "1091f772"
+   },
+   "BackdropImageTags": [
+    "4798c18c"
+   ]
+  },
+  {
+   "Id": "12f20f773f247de6e326cf014be49d0f",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Glass Garden",
+   "Type": "Movie",
+   "MediaType": "Video",
+   "ParentId": "80662e1f485e79d07ef4973f6b1b9f88",
+   "ProductionYear": 2020,
+   "RunTimeTicks": 60600000000,
+   "Overview": "A botanist restores a ruined greenhouse and the town that forgot it.",
+   "OfficialRating": "12",
+   "CommunityRating": 7.6,
+   "Genres": [
+    "Drama"
+   ],
+   "PrimaryImageAspectRatio": 0.6667,
+   "ImageTags": {
+    "Primary": "c4d52109"
+   },
+   "BackdropImageTags": [
+    "2ed7e9b3"
+   ]
+  },
+  {
+   "Id": "44ecba44ea73bf98b30fd1965cc8a7c1",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Moth Season",
+   "Type": "Movie",
+   "MediaType": "Video",
+   "ParentId": "80662e1f485e79d07ef4973f6b1b9f88",
+   "ProductionYear": 2022,
+   "RunTimeTicks": 56400000000,
+   "Overview": "Late-night radio, insomnia and a caller who knows too much.",
+   "OfficialRating": "12",
+   "CommunityRating": 7.9,
+   "Genres": [
+    "Drama"
+   ],
+   "PrimaryImageAspectRatio": 0.6667,
+   "ImageTags": {
+    "Primary": "589b4fdc"
+   },
+   "BackdropImageTags": [
+    "a6ff676d"
+   ]
+  },
+  {
+   "Id": "1d9b227e2f9f6463adb9d1b592889566",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Under the Pier",
+   "Type": "Movie",
+   "MediaType": "Video",
+   "ParentId": "80662e1f485e79d07ef4973f6b1b9f88",
+   "ProductionYear": 2017,
+   "RunTimeTicks": 51000000000,
+   "Overview": "A comedy about a lifeguard who can't swim.",
+   "OfficialRating": "12",
+   "CommunityRating": 8.2,
+   "Genres": [
+    "Drama"
+   ],
+   "PrimaryImageAspectRatio": 0.6667,
+   "ImageTags": {
+    "Primary": "7b651aa8"
+   },
+   "BackdropImageTags": [
+    "32bc1a51"
+   ]
+  },
+  {
+   "Id": "3005f49a4acf9e2325113a48321293a9",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Harbour Tales",
+   "Type": "Series",
+   "IsFolder": true,
+   "ParentId": "6201ef1b62afc8279dbe20aaf6dcf3be",
+   "ProductionYear": 2022,
+   "Overview": "Every episode follows one boat that comes into the harbour of Kesterby.",
+   "ChildCount": 2,
+   "PrimaryImageAspectRatio": 0.6667,
+   "ImageTags": {
+    "Primary": "b532cddf"
+   },
+   "BackdropImageTags": [
+    "52ff1bb2"
+   ]
+  },
+  {
+   "Id": "56a3efedb71da8708a03fab04616ab8c",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Season 1",
+   "Type": "Season",
+   "IsFolder": true,
+   "ParentId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesName": "Harbour Tales",
+   "IndexNumber": 1,
+   "ChildCount": 6,
+   "ImageTags": {
+    "Primary": "2978fbc3"
+   }
+  },
+  {
+   "Id": "7cdc6aaa219a0375166473e2c4e46d98",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": true,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 1",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "56a3efedb71da8708a03fab04616ab8c",
+   "SeasonId": "56a3efedb71da8708a03fab04616ab8c",
+   "SeriesId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesName": "Harbour Tales",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 1,
+   "RunTimeTicks": 25800000000,
+   "Overview": "Part 1 of season 1 of Harbour Tales.",
+   "ImageTags": {
+    "Primary": "38dff144"
+   }
+  },
+  {
+   "Id": "76782c0b5d8eb4c3f4f8a9b2ae7c1234",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": true,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 2",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "56a3efedb71da8708a03fab04616ab8c",
+   "SeasonId": "56a3efedb71da8708a03fab04616ab8c",
+   "SeriesId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesName": "Harbour Tales",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 2,
+   "RunTimeTicks": 26400000000,
+   "Overview": "Part 2 of season 1 of Harbour Tales.",
+   "ImageTags": {
+    "Primary": "a08ddbce"
+   }
+  },
+  {
+   "Id": "3e54de348bd9e3daea0a8a6c6495d12e",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": true,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 3",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "56a3efedb71da8708a03fab04616ab8c",
+   "SeasonId": "56a3efedb71da8708a03fab04616ab8c",
+   "SeriesId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesName": "Harbour Tales",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 3,
+   "RunTimeTicks": 27000000000,
+   "Overview": "Part 3 of season 1 of Harbour Tales.",
+   "ImageTags": {
+    "Primary": "badc786f"
+   }
+  },
+  {
+   "Id": "6401c0cc04f9062090986291ee4b412f",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 4",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "56a3efedb71da8708a03fab04616ab8c",
+   "SeasonId": "56a3efedb71da8708a03fab04616ab8c",
+   "SeriesId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesName": "Harbour Tales",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 4,
+   "RunTimeTicks": 27600000000,
+   "Overview": "Part 4 of season 1 of Harbour Tales.",
+   "ImageTags": {
+    "Primary": "94921cd7"
+   }
+  },
+  {
+   "Id": "9369e12201e84039d5c81defcd81eb99",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 5",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "56a3efedb71da8708a03fab04616ab8c",
+   "SeasonId": "56a3efedb71da8708a03fab04616ab8c",
+   "SeriesId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesName": "Harbour Tales",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 5,
+   "RunTimeTicks": 28200000000,
+   "Overview": "Part 5 of season 1 of Harbour Tales.",
+   "ImageTags": {
+    "Primary": "91694164"
+   }
+  },
+  {
+   "Id": "770b908b6aad4ce9da249cbe6fd219cd",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 6",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "56a3efedb71da8708a03fab04616ab8c",
+   "SeasonId": "56a3efedb71da8708a03fab04616ab8c",
+   "SeriesId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesName": "Harbour Tales",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 6,
+   "RunTimeTicks": 28800000000,
+   "Overview": "Part 6 of season 1 of Harbour Tales.",
+   "ImageTags": {
+    "Primary": "d3d9153e"
+   }
+  },
+  {
+   "Id": "f42b01a715c0f7bdfd731fd8355b88ca",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Season 2",
+   "Type": "Season",
+   "IsFolder": true,
+   "ParentId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesName": "Harbour Tales",
+   "IndexNumber": 2,
+   "ChildCount": 4,
+   "ImageTags": {
+    "Primary": "1e67c4d5"
+   }
+  },
+  {
+   "Id": "290cd9a50691e695710c310a60ab9853",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 1",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "f42b01a715c0f7bdfd731fd8355b88ca",
+   "SeasonId": "f42b01a715c0f7bdfd731fd8355b88ca",
+   "SeriesId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesName": "Harbour Tales",
+   "ParentIndexNumber": 2,
+   "IndexNumber": 1,
+   "RunTimeTicks": 25800000000,
+   "Overview": "Part 1 of season 2 of Harbour Tales.",
+   "ImageTags": {
+    "Primary": "37216b56"
+   }
+  },
+  {
+   "Id": "c968fd7ff3b9b41b9814c9da1eeee664",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 2",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "f42b01a715c0f7bdfd731fd8355b88ca",
+   "SeasonId": "f42b01a715c0f7bdfd731fd8355b88ca",
+   "SeriesId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesName": "Harbour Tales",
+   "ParentIndexNumber": 2,
+   "IndexNumber": 2,
+   "RunTimeTicks": 26400000000,
+   "Overview": "Part 2 of season 2 of Harbour Tales.",
+   "ImageTags": {
+    "Primary": "cd91f17c"
+   }
+  },
+  {
+   "Id": "7d4e1e9a12af543dc13547649b54bcb8",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 3",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "f42b01a715c0f7bdfd731fd8355b88ca",
+   "SeasonId": "f42b01a715c0f7bdfd731fd8355b88ca",
+   "SeriesId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesName": "Harbour Tales",
+   "ParentIndexNumber": 2,
+   "IndexNumber": 3,
+   "RunTimeTicks": 27000000000,
+   "Overview": "Part 3 of season 2 of Harbour Tales.",
+   "ImageTags": {
+    "Primary": "764f0c9f"
+   }
+  },
+  {
+   "Id": "68e26cccfc2bb36fedebcdeb9a535315",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 4",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "f42b01a715c0f7bdfd731fd8355b88ca",
+   "SeasonId": "f42b01a715c0f7bdfd731fd8355b88ca",
+   "SeriesId": "3005f49a4acf9e2325113a48321293a9",
+   "SeriesName": "Harbour Tales",
+   "ParentIndexNumber": 2,
+   "IndexNumber": 4,
+   "RunTimeTicks": 27600000000,
+   "Overview": "Part 4 of season 2 of Harbour Tales.",
+   "ImageTags": {
+    "Primary": "13899586"
+   }
+  },
+  {
+   "Id": "fb23a8d71493023429e42d78c7d14135",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Night Market",
+   "Type": "Series",
+   "IsFolder": true,
+   "ParentId": "6201ef1b62afc8279dbe20aaf6dcf3be",
+   "ProductionYear": 2024,
+   "Overview": "Food, stories and trouble at a market that opens at midnight.",
+   "ChildCount": 1,
+   "PrimaryImageAspectRatio": 0.6667,
+   "ImageTags": {
+    "Primary": "53bf76ee"
+   },
+   "BackdropImageTags": [
+    "54f80ba7"
+   ]
+  },
+  {
+   "Id": "765e63f7a1f58dd6ef06f778927080ee",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Season 1",
+   "Type": "Season",
+   "IsFolder": true,
+   "ParentId": "fb23a8d71493023429e42d78c7d14135",
+   "SeriesId": "fb23a8d71493023429e42d78c7d14135",
+   "SeriesName": "Night Market",
+   "IndexNumber": 1,
+   "ChildCount": 8,
+   "ImageTags": {
+    "Primary": "a93810a9"
+   }
+  },
+  {
+   "Id": "a35cb5aa32b9e405ea812a1777eebacd",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 1",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeasonId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeriesId": "fb23a8d71493023429e42d78c7d14135",
+   "SeriesName": "Night Market",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 1,
+   "RunTimeTicks": 25800000000,
+   "Overview": "Part 1 of season 1 of Night Market.",
+   "ImageTags": {
+    "Primary": "d0ae0e6a"
+   }
+  },
+  {
+   "Id": "94ce7ecb2c95c3745194825fba833a19",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 2",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeasonId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeriesId": "fb23a8d71493023429e42d78c7d14135",
+   "SeriesName": "Night Market",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 2,
+   "RunTimeTicks": 26400000000,
+   "Overview": "Part 2 of season 1 of Night Market.",
+   "ImageTags": {
+    "Primary": "ddd2d348"
+   }
+  },
+  {
+   "Id": "d6da7f5ff37db73f8bdd703d9a1a7ac2",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 3",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeasonId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeriesId": "fb23a8d71493023429e42d78c7d14135",
+   "SeriesName": "Night Market",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 3,
+   "RunTimeTicks": 27000000000,
+   "Overview": "Part 3 of season 1 of Night Market.",
+   "ImageTags": {
+    "Primary": "c2c6ee08"
+   }
+  },
+  {
+   "Id": "f9ac3bf6118c07498034db28bfcba4ee",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 4",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeasonId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeriesId": "fb23a8d71493023429e42d78c7d14135",
+   "SeriesName": "Night Market",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 4,
+   "RunTimeTicks": 27600000000,
+   "Overview": "Part 4 of season 1 of Night Market.",
+   "ImageTags": {
+    "Primary": "739b939f"
+   }
+  },
+  {
+   "Id": "16d91db8b66fb16908c94cbaf10ff800",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 5",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeasonId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeriesId": "fb23a8d71493023429e42d78c7d14135",
+   "SeriesName": "Night Market",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 5,
+   "RunTimeTicks": 28200000000,
+   "Overview": "Part 5 of season 1 of Night Market.",
+   "ImageTags": {
+    "Primary": "8ca9b995"
+   }
+  },
+  {
+   "Id": "716a5b36b6fd0c7b795e9e801392cb2b",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 6",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeasonId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeriesId": "fb23a8d71493023429e42d78c7d14135",
+   "SeriesName": "Night Market",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 6,
+   "RunTimeTicks": 28800000000,
+   "Overview": "Part 6 of season 1 of Night Market.",
+   "ImageTags": {
+    "Primary": "7a1e5720"
+   }
+  },
+  {
+   "Id": "ffe74e0d623a87a8fd69c36d7890c862",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 7",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeasonId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeriesId": "fb23a8d71493023429e42d78c7d14135",
+   "SeriesName": "Night Market",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 7,
+   "RunTimeTicks": 29400000000,
+   "Overview": "Part 7 of season 1 of Night Market.",
+   "ImageTags": {
+    "Primary": "af7ea2ef"
+   }
+  },
+  {
+   "Id": "32191c731b6f1da02c23f5b436fbf934",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Episode 8",
+   "Type": "Episode",
+   "MediaType": "Video",
+   "ParentId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeasonId": "765e63f7a1f58dd6ef06f778927080ee",
+   "SeriesId": "fb23a8d71493023429e42d78c7d14135",
+   "SeriesName": "Night Market",
+   "ParentIndexNumber": 1,
+   "IndexNumber": 8,
+   "RunTimeTicks": 30000000000,
+   "Overview": "Part 8 of season 1 of Night Market.",
+   "ImageTags": {
+    "Primary": "8d32171c"
+   }
+  },
+  {
+   "Id": "2a33ffb1b642d37b6a4aedc133886b96",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Tidal Sketches",
+   "Type": "MusicAlbum",
+   "IsFolder": true,
+   "ParentId": "47dcbd834e669233d7eb8a51456ed217",
+   "ProductionYear": 2020,
+   "AlbumArtist": "The Low Tides",
+   "ChildCount": 4,
+   "ImageTags": {
+    "Primary": "3722c785"
+   }
+  },
+  {
+   "Id": "cebcb11e31b61c80e37ec10c32f0598f",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Ebb",
+   "Type": "Audio",
+   "MediaType": "Audio",
+   "ParentId": "2a33ffb1b642d37b6a4aedc133886b96",
+   "AlbumId": "2a33ffb1b642d37b6a4aedc133886b96",
+   "Album": "Tidal Sketches",
+   "AlbumArtist": "The Low Tides",
+   "IndexNumber": 1,
+   "RunTimeTicks": 2000000000
+  },
+  {
+   "Id": "c906ef3e1defdb9317adf10833c93143",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Driftwood",
+   "Type": "Audio",
+   "MediaType": "Audio",
+   "ParentId": "2a33ffb1b642d37b6a4aedc133886b96",
+   "AlbumId": "2a33ffb1b642d37b6a4aedc133886b96",
+   "Album": "Tidal Sketches",
+   "AlbumArtist": "The Low Tides",
+   "IndexNumber": 2,
+   "RunTimeTicks": 2200000000
+  },
+  {
+   "Id": "587a7d06502c2a55aab7b96d607a0e1e",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Slack Water",
+   "Type": "Audio",
+   "MediaType": "Audio",
+   "ParentId": "2a33ffb1b642d37b6a4aedc133886b96",
+   "AlbumId": "2a33ffb1b642d37b6a4aedc133886b96",
+   "Album": "Tidal Sketches",
+   "AlbumArtist": "The Low Tides",
+   "IndexNumber": 3,
+   "RunTimeTicks": 2400000000
+  },
+  {
+   "Id": "291c6fb36a2ce1a0d33306784725ecff",
+   "ServerId": "54c3b2a93311e46257a9f90b108c0845",
+   "UserData": {
+    "Played": false,
+    "PlaybackPositionTicks": 0,
+    "IsFavorite": false
+   },
+   "Name": "Flood",
+   "Type": "Audio",
+   "MediaType": "Audio",
+   "ParentId": "2a33ffb1b642d37b6a4aedc133886b96",
+   "AlbumId": "2a33ffb1b642d37b6a4aedc133886b96",
+   "Album": "Tidal Sketches",
+   "AlbumArtist": "The Low Tides",
+   "IndexNumber": 4,
+   "RunTimeTicks": 2600000000
+  }
+ ]
+}

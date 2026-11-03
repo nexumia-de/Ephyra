@@ -1,0 +1,34 @@
+id: de.nexumia.Ephyra
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+command: ephyra
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  # Sound of videos and music.
+  - --socket=pulseaudio
+  # The Jellyfin server, local and remote.
+  - --share=network
+  # The Wi-Fi name, to use the local address at home (docs/connection.md).
+  - --system-talk-name=org.freedesktop.NetworkManager
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - '*.a'
+  - '*.la'
+# Everything Ephyra needs is in the GNOME runtime (GTK, libadwaita,
+# libsoup 3, libsecret, GStreamer); no module is bundled. Inventory:
+# docs/dependencies.md.
+modules:
+  - name: ephyra
+    buildsystem: meson
+    sources:
+      - type: dir
+        path: .
+        skip:
+          - build-dir
+          - repo
+          - tests

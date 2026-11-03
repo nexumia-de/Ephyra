@@ -1,0 +1,51 @@
+/* Ephyra's Jellyfin look on top of libadwaita (docs/design.md,
+   docs/decisions/jellyfin-style.md). Colours only through libadwaita's
+   variables; the accent is Jellyfin's blue. */
+
+/* libadwaita 1.5 (host previews) reads named colours. */
+@define-color accent_bg_color #00a4dc;
+@define-color accent_fg_color rgba(0, 0, 0, 0.87);
+@define-color accent_color #33b6e3;
+
+/* libadwaita 1.6+ derives the accent text colour from these. */
+:root {
+  --accent-bg-color: #00a4dc;
+  --accent-fg-color: rgb(0 0 0 / 87%);
+}
+
+/* Posters, thumbnails and backdrops: rounded like Jellyfin's cards. */
+.ephyra-poster {
+  border-radius: 8px;
+  background-color: alpha(currentColor, 0.08);
+}
+
+/* Played check and unplayed count in the poster's corner. */
+.ephyra-badge {
+  margin: 6px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 4px;
+  border-radius: 12px;
+  background-color: @accent_bg_color;
+  background-color: var(--accent-bg-color);
+  color: @accent_fg_color;
+  color: var(--accent-fg-color);
+}
+
+/* Resume position along the poster's bottom edge. */
+.ephyra-poster-progress {
+  margin: 0 8px 6px 8px;
+}
+
+/* The detail page's backdrop fades into the page. */
+.ephyra-backdrop-fade {
+  background-image: linear-gradient(to bottom, transparent 45%,
+                                    @window_bg_color);
+  background-image: linear-gradient(to bottom, transparent 45%,
+                                    var(--window-bg-color));
+}
+
+/* Letterbox around the video: part of the content, not chrome. */
+.ephyra-video {
+  background-color: black;
+}
