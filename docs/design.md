@@ -1,7 +1,7 @@
 ---
 type: Guideline
 title: Jellyfin look
-description: How Ephyra looks like Jellyfin's apps on top of libadwaita - dark first, Jellyfin's blue accent, poster cards, backdrops - and which toolkit design rules still apply, with a review checklist.
+description: How Ephyra looks like Jellyfin's apps on top of libadwaita - light or dark as the user chooses, Jellyfin's blue accent, poster cards, backdrops - and which toolkit design rules still apply, with a review checklist.
 tags: [ui, design, jellyfin, libadwaita, guideline]
 resource: ../ephyra/style.css
 generated: { by: claude-code/2.1.317, at: 2026-11-03T23:30:00Z }
@@ -23,10 +23,14 @@ widgets. Decision and trade-offs: [Jellyfin look](decisions/jellyfin-style.md).
 
 # Rules
 
-1. **Dark first.** `AdwStyleManager` is set to `PREFER_DARK`: dark
-   unless the system explicitly asks for light. Jellyfin's default theme
-   is dark[^jf-palette]; a light system still gets a light app.
-2. **Jellyfin's blue as the accent.** `--accent-bg-color: #00a4dc` and
+1. **Light or dark: the system's, or the user's choice.** Ephyra follows
+   the system style; Preferences → General → Style offers Follow System,
+   Light and Dark, kept in the account file (toolkit rule 8,
+   [decision](../../phosh-toolkit/docs/decisions/app-accent-colours.md)).
+   Jellyfin's default theme is dark[^jf-palette], so the dark style is
+   the one that looks most like Jellyfin; both are checked in reviews.
+2. **Jellyfin's blue as Ephyra's accent** (the toolkit gives every app
+   its own accent). `--accent-bg-color: #00a4dc` and
    dark text on it (`--accent-fg-color: rgb(0 0 0 / 87%)`, Jellyfin's
    `primary-contrastText`)[^jf-palette]. libadwaita derives the accent
    text colour, so links, checks and focus rings follow. Set only in

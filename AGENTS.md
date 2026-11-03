@@ -16,10 +16,11 @@ as well, with the exceptions below.
 ## Design: Jellyfin's look
 
 - The owner wants Ephyra to look like Jellyfin's apps. This replaces the
-  toolkit's "stock look, no overridden accent colour" rule for this app
-  only: [decision](docs/decisions/jellyfin-style.md).
-- Follow [docs/design.md](docs/design.md): dark first, Jellyfin's blue
-  accent through libadwaita's variables, poster cards with played
+  toolkit's stock look for this app:
+  [decision](docs/decisions/jellyfin-style.md).
+- Follow [docs/design.md](docs/design.md): Jellyfin's blue as Ephyra's
+  accent through libadwaita's variables, light/dark from the system or
+  the Style preference, poster cards with played
   badges and progress, backdrops on detail pages. Everything else of the
   toolkit's design and adaptive rules still applies (360×720, no
   horizontal scrolling, style classes, symbolic icons, tooltips).

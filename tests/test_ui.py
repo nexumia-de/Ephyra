@@ -117,6 +117,14 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
     dialog = PreferencesDialog(window)
     dialog.present(window)
     assert dialog.form.remote.get_text() == mtls_demo.url
+    # Style: follows the system until chosen, kept in the account file.
+    manager = Adw.StyleManager.get_default()
+    assert manager.get_color_scheme() == Adw.ColorScheme.DEFAULT
+    dialog.style_row.set_selected(2)
+    assert manager.get_color_scheme() == Adw.ColorScheme.FORCE_DARK
+    assert settings.Store().load().style == "dark"
+    dialog.style_row.set_selected(0)
+    assert manager.get_color_scheme() == Adw.ColorScheme.DEFAULT
     dialog.close()
     window.destroy()
 
