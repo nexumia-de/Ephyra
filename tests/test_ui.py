@@ -21,8 +21,10 @@ from ephyra.demo import PASSWORD  # noqa: E402
 from ephyra.http import Client  # noqa: E402
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def app():
+    """One application for all tests: a second one with the same id can't
+    register on the session bus."""
     from ephyra.main import Application
     application = Application()
     application.register(None)

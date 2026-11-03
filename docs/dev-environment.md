@@ -36,13 +36,15 @@ The cloud image's default `python3` (3.13) has no `gi`; use
 ```sh
 EPHYRA_DEMO=$PWD/tests/data/demo /usr/bin/python3.12 -m ephyra   # demo library
 /usr/bin/python3.12 -m ephyra                                    # real server
-xvfb-run -a /usr/bin/python3.12 -m pytest                        # all tests
+dbus-run-session -- xvfb-run -a /usr/bin/python3.12 -m pytest   # all tests, as in CI
 ../phosh-toolkit/scripts/screenshot.sh -e EPHYRA_DEMO=$PWD/tests/data/demo -o shot.png -- /usr/bin/python3.12 -m ephyra
 ```
 
 `EPHYRA_DEBUG=1` logs the route, proxy requests and playback.
 `EPHYRA_KEYRING=memory` keeps secrets in memory (tests, screenshots).
-The tests make their own CA and certificates with `openssl` and run the
+CI has a session bus, so the UI tests share one application (a second
+one with the same id can't register); run them under `dbus-run-session`
+to match. The tests make their own CA and certificates with `openssl` and run the
 demo server behind mutual TLS.
 
 Host screenshots use libadwaita 1.5: the CSS variables in `style.css`
