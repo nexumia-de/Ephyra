@@ -64,10 +64,6 @@ class Application(Adw.Application):
 
     def do_startup(self):
         Adw.Application.do_startup(self)
-        # Jellyfin's dark look unless the system asks for light
-        # (docs/design.md).
-        Adw.StyleManager.get_default().set_color_scheme(
-            Adw.ColorScheme.PREFER_DARK)
         css = Gtk.CssProvider()
         css.load_from_path(str(Path(__file__).with_name("style.css")))
         Gtk.StyleContext.add_provider_for_display(
@@ -83,6 +79,14 @@ class Application(Adw.Application):
         else:
             from ephyra.connection import Connection
             self.connection = Connection()
+        self.apply_style(self.connection.account.style)
+
+    def apply_style(self, style):
+        """Follow the system, or the light or dark style chosen in the
+        preferences (docs/design.md)."""
+        from ephyra.settings import color_scheme
+        Adw.StyleManager.get_default().set_color_scheme(
+            getattr(Adw.ColorScheme, color_scheme(style)))
 
     def do_activate(self):
         from ephyra.window import Window

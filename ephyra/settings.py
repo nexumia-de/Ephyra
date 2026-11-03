@@ -19,6 +19,14 @@ QUALITIES = (
     (1_500_000, "1.5 Mbit/s"),
 )
 
+# Light or dark (phosh-toolkit docs/design.md, rule 8): stored value,
+# label, and the AdwColorScheme name it selects.
+STYLES = (
+    ("system", "Follow System", "DEFAULT"),
+    ("light", "Light", "FORCE_LIGHT"),
+    ("dark", "Dark", "FORCE_DARK"),
+)
+
 
 @dataclass
 class Account:
@@ -33,10 +41,19 @@ class Account:
     device_id: str = field(default_factory=lambda: uuid.uuid4().hex)
     quality_home: int = 0
     quality_away: int = 4_000_000
+    style: str = "system"
 
     @property
     def signed_in(self):
         return bool(self.user_id and self.server_id)
+
+
+def color_scheme(style):
+    """The AdwColorScheme member name for a stored style."""
+    for value, _, scheme in STYLES:
+        if value == style:
+            return scheme
+    return "DEFAULT"
 
 
 def _dir(env, default):
