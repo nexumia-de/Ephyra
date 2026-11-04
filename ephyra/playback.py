@@ -12,10 +12,13 @@ DIRECT_STREAM = "DirectStream"
 TRANSCODE = "Transcode"
 
 # Formats the GNOME runtime's GStreamer plays; H.264/HEVC need the codecs
-# the runtime provides (docs/playback.md, verify on the phone).
+# the runtime provides (docs/playback.md, verify on the phone). TrueHD and
+# DTS (Jellyfin calls DTS-HD "dts" too) are decoded by avdec_truehd and
+# avdec_dca, both in the GNOME 51 runtime; without them most Blu-ray
+# remuxes could not be played directly.
 VIDEO_CONTAINERS = "mp4,m4v,mkv,webm,mov"
 VIDEO_CODECS = "h264,hevc,vp8,vp9,av1"
-AUDIO_CODECS = "aac,mp3,opus,vorbis,flac,ac3,eac3,alac"
+AUDIO_CODECS = "aac,mp3,opus,vorbis,flac,ac3,eac3,alac,truehd,dts"
 AUDIO_CONTAINERS = "mp3,flac,ogg,oga,opus,m4a,aac,wav,webma"
 
 
@@ -44,9 +47,9 @@ def device_profile(max_bitrate):
         "CodecProfiles": [],
         # Text subtitles come as SRT files next to the stream, which
         # Ephyra draws over the video (ephyra/subtitles.py); picture
-        # subtitles (PGS,
-        # DVD) match no profile, so the server burns them in
-        # (StreamBuilder.GetSubtitleProfile, docs/playback.md).
+        # subtitles (PGS, DVD) match no profile, so the server burns them
+        # in (StreamBuilder.GetSubtitleProfile, docs/playback.md), but
+        # only when the user chooses one (sessions.fetch_stream).
         "SubtitleProfiles": [{"Format": "srt", "Method": "External"}],
     }
 
@@ -65,10 +68,16 @@ def audio_tracks(source):
             and "Index" in s]
 
 
+CONVERTED = " (converted on the server)"
+
+
 def subtitle_tracks(source):
     """(Jellyfin index, title) of the subtitles the phone can show: as an
-    SRT file (External) or burned in by the server (Encode)."""
-    return [(s["Index"], track_title(s)) for s in source.get("MediaStreams") or []
+    SRT file (External) or burned in by the server (Encode). Burning in
+    means the server re-encodes the whole video, so those say so."""
+    return [(s["Index"], track_title(s) + (CONVERTED if s.get("DeliveryMethod") == "Encode"
+                                           else ""))
+            for s in source.get("MediaStreams") or []
             if s.get("Type") == "Subtitle" and "Index" in s
             and s.get("DeliveryMethod") in ("External", "Encode")]
 
@@ -78,6 +87,20 @@ def subtitle_method(source, index):
         if s.get("Type") == "Subtitle" and s.get("Index") == index:
             return s.get("DeliveryMethod")
     return None
+
+
+def burns_in_default(info):
+    """True when the server's own subtitle pick (asked without
+    SubtitleStreamIndex) would be burned into the video: a picture
+    subtitle (PGS, DVD, DVB) matches no subtitle profile, so its method is
+    Encode, and the server re-encodes the whole video for it. Ephyra then
+    asks again with the subtitle off (docs/playback.md)."""
+    sources = info.get("MediaSources") or []
+    if not sources:
+        return False
+    index = sources[0].get("DefaultSubtitleStreamIndex")
+    return (index is not None and index >= 0
+            and subtitle_method(sources[0], index) == "Encode")
 
 
 class Stream:
@@ -137,6 +160,15 @@ class Stream:
             payload["SubtitleStreamIndex"] = self.subtitle_index
         if event == "":
             payload["QueueableMediaTypes"] = ["Video", "Audio"]
+        return payload
+
+    def stop_report(self, position, failed=False):
+        """The /Sessions/Playing/Stopped payload. `failed`: the stream never
+        played; the server then leaves the user's resume position and
+        played state alone (SessionManager.OnPlaybackStopped)."""
+        payload = self.report(position, event="Stopped")
+        if failed:
+            payload["Failed"] = True
         return payload
 
 

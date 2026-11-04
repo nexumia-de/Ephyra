@@ -118,7 +118,7 @@ def test_tracks_and_choice():
     assert playback.audio_tracks(source) == [(1, "English - Vorbis"),
                                              (2, "German - Vorbis")]
     assert playback.subtitle_tracks(source) == [(4, "English - SRT"),
-                                                (5, "German - PGS")]
+                                                (5, "German - PGS (converted on the server)")]
     assert stream.audio_position == 1
     assert stream.subtitle_path == "/Videos/abc/src/Subtitles/4/0/Stream.srt"
     report = stream.report(1)
@@ -129,3 +129,31 @@ def test_tracks_and_choice():
     assert playback.subtitle_method(source, -1) is None
     stream.subtitle_index = -1
     assert stream.subtitle_path is None
+
+
+def test_blu_ray_audio_plays_directly():
+    # avdec_truehd and avdec_dca are in the GNOME 51 runtime (docs/playback.md).
+    video = playback.device_profile(0)["DirectPlayProfiles"][0]
+    codecs = video["AudioCodec"].split(",")
+    assert "truehd" in codecs and "dts" in codecs
+
+
+def test_burned_in_default_is_noticed():
+    def info(default):
+        return {"MediaSources": [{"MediaStreams": TRACKS,
+                                  "DefaultSubtitleStreamIndex": default}]}
+    assert playback.burns_in_default(info(5))          # PGS: Encode
+    assert not playback.burns_in_default(info(4))      # SRT: External
+    assert not playback.burns_in_default(info(-1))
+    assert not playback.burns_in_default(info(None))
+    assert not playback.burns_in_default({"MediaSources": []})
+
+
+def test_stop_report_of_a_stream_that_never_played():
+    stream = playback.choose(ITEM, {"PlaySessionId": "s", "MediaSources": [{
+        "Id": "src", "SupportsDirectPlay": True}]}, "dev", "tok")
+    payload = stream.stop_report(90, failed=True)
+    # Failed: the server keeps the resume position (SessionManager).
+    assert payload["Failed"] and payload["PlaySessionId"] == "s"
+    assert payload["PositionTicks"] == 900_000_000
+    assert "Failed" not in stream.stop_report(90)
