@@ -1,6 +1,7 @@
 """Preferences: connection (the setup form), playback quality per route,
 and the account."""
 from gi.repository import Adw, GLib, Gtk
+from phosh_toolkit.style import style_row
 
 from ephyra import settings
 from ephyra.setup import connection_form
@@ -31,13 +32,7 @@ class PreferencesDialog(Adw.PreferencesDialog):
         general_page = Adw.PreferencesPage(
             title="General", icon_name="preferences-system-symbolic")
         appearance = Adw.PreferencesGroup(title="Appearance")
-        self.style_row = Adw.ComboRow(
-            title="Style", model=Gtk.StringList.new(
-                [label for _, label, _ in settings.STYLES]))
-        styles = [value for value, _, _ in settings.STYLES]
-        self.style_row.set_selected(styles.index(account.style)
-                                    if account.style in styles else 0)
-        self.style_row.connect("notify::selected", self._on_style, styles)
+        self.style_row = style_row(account.style, self._on_style)
         appearance.add(self.style_row)
         general_page.add(appearance)
         quality = Adw.PreferencesGroup(
@@ -76,11 +71,9 @@ class PreferencesDialog(Adw.PreferencesDialog):
     def toast(self, message):
         self.add_toast(Adw.Toast(title=GLib.markup_escape_text(message)))
 
-    def _on_style(self, row, pspec, styles):
-        style = styles[row.get_selected()]
+    def _on_style(self, style):
         self.window.connection.account.style = style
         self.window.connection.save()
-        self.window.get_application().apply_style(style)
 
     def _on_quality(self, row, pspec, attr, values):
         setattr(self.window.connection.account, attr, values[row.get_selected()])

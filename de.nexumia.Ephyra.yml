@@ -27,14 +27,14 @@ modules:
   - name: phosh-toolkit
     buildsystem: simple
     build-commands:
-      - install -Dm644 -t "$(python3 -c 'import sysconfig; print(sysconfig.get_path("purelib", vars={"base": "/app"}))')/phosh_toolkit" lib/phosh_toolkit/*.py
+      - install -Dm644 -t "$(python3 -c 'import sysconfig; print(sysconfig.get_path("purelib", vars={"base":"/app"}))')/phosh_toolkit" lib/phosh_toolkit/*.py
       - install -Dm644 -t /app/share/licenses/$FLATPAK_ID/phosh-toolkit LICENSE
     sources:
       - type: git
         url: https://github.com/nexumia-de/phosh-toolkit.git
         # The toolkit pull request that adds the package; replaced by the
         # tag v0.1.0 and its commit once that exists.
-        commit: 222b09c9879c33543104fa8038461697467d76f3
+        commit: 170bca9e11ae4c7029e76087485299dfbae76c6b
         x-checker-data:
           type: git
           tag-pattern: ^v([\d.]+)$
