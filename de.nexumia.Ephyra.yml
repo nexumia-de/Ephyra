@@ -32,9 +32,8 @@ modules:
     sources:
       - type: git
         url: https://github.com/nexumia-de/phosh-toolkit.git
-        # The toolkit pull request that adds the package; replaced by the
-        # tag v0.1.0 and its commit once that exists.
-        commit: 170bca9e11ae4c7029e76087485299dfbae76c6b
+        tag: v0.1.0
+        commit: f018688aff5ff2b04b2266f96d24ed626b219b3f
         x-checker-data:
           type: git
           tag-pattern: ^v([\d.]+)$
