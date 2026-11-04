@@ -24,6 +24,7 @@ from ephyra import connection, settings, setup  # noqa: E402
 from ephyra.demo import PASSWORD  # noqa: E402
 
 CLIP = Path(__file__).resolve().parent / "data" / "media" / "clip.webm"
+TRACKS = CLIP.with_name("tracks.mkv")
 
 
 @pytest.fixture(scope="module")
@@ -145,6 +146,42 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
         run_until(lambda: not window.is_fullscreen())
         window.nav.pop()
         run_until(lambda: player.stopped)
+
+        # Audio and subtitles (docs/playback.md): German audio switches inside
+        # GStreamer, the subtitle comes as SRT and Ephyra draws it.
+        mtls_demo.media = TRACKS.read_bytes()
+        mtls_demo.media_streams = [
+            {"Index": 0, "Type": "Video", "Codec": "vp8"},
+            {"Index": 1, "Type": "Audio", "Language": "eng", "DisplayTitle": "English"},
+            {"Index": 2, "Type": "Audio", "Language": "ger", "DisplayTitle": "German"},
+            {"Index": 3, "Type": "Subtitle", "Language": "eng", "DisplayTitle": "English"}]
+        mtls_demo.subtitles = b"1\n00:00:00,000 --> 00:00:30,000\n<i>Hello</i>\n\n"
+        window.play(detail.item, 0)
+        player = visible(window)
+        run_until(lambda: player.media is not None and player.media.is_prepared(), 20)
+        assert player.tracks_button.get_visible()
+        assert player.stream.audio_index == 1 and player.stream.subtitle_index == -1
+        player.open_tracks()
+        assert player.sheet.get_reveal_child()
+        player.choose_audio(2)
+        assert player.media.audio_position == 1
+        media = player.media
+        player.choose_subtitle(3)
+        # No restart: the same pipeline plays on.
+        assert player.media is media
+        run_until(lambda: player.subtitle_label.get_visible(), 20)
+        assert player.subtitle_label.get_label() == "<i>Hello</i>"
+        assert any(path.endswith("/Subtitles/3/0/Stream.srt")
+                   for _, path, _ in mtls_demo.requests)
+        assert player.stream.report(0)["SubtitleStreamIndex"] == 3
+        player.choose_subtitle(-1)
+        run_until(lambda: not player.subtitle_label.get_visible())
+        # A tap beside the sheet closes it.
+        player._on_tap(None, 1, 1, 1)
+        assert not player.sheet.get_reveal_child()
+        window.nav.pop()
+        run_until(lambda: player.stopped)
+        mtls_demo.media_streams = []
 
     dialog = PreferencesDialog(window)
     dialog.present(window)

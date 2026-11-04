@@ -87,3 +87,45 @@ def test_gstreamer_reason_is_short():
     assert gst_reason(message) == "Could not determine type of stream."
     assert gst_reason("No decoder available for type 'video/x-h265'.") == (
         "No decoder available for type 'video/x-h265'.")
+
+
+TRACKS = [
+    {"Index": 0, "Type": "Video", "Codec": "vp8"},
+    {"Index": 1, "Type": "Audio", "Language": "eng", "DisplayTitle": "English - Vorbis"},
+    {"Index": 2, "Type": "Audio", "Language": "ger", "DisplayTitle": "German - Vorbis"},
+    {"Index": 3, "Type": "Audio", "IsExternal": True, "DisplayTitle": "Commentary"},
+    {"Index": 4, "Type": "Subtitle", "DisplayTitle": "English - SRT",
+     "DeliveryMethod": "External",
+     "DeliveryUrl": "/Videos/abc/src/Subtitles/4/0/Stream.srt?ApiKey=tok"},
+    {"Index": 5, "Type": "Subtitle", "DisplayTitle": "German - PGS",
+     "DeliveryMethod": "Encode"},
+    {"Index": 6, "Type": "Subtitle", "DisplayTitle": "Hidden", "DeliveryMethod": "Drop"},
+]
+
+
+def test_subtitles_come_as_srt_files():
+    profile = playback.device_profile(0)
+    assert profile["SubtitleProfiles"] == [{"Format": "srt", "Method": "External"}]
+
+
+def test_tracks_and_choice():
+    info = {"PlaySessionId": "s", "MediaSources": [{
+        "Id": "src", "SupportsDirectPlay": True, "MediaStreams": TRACKS,
+        "DefaultAudioStreamIndex": 2, "DefaultSubtitleStreamIndex": 4}]}
+    stream = playback.choose(ITEM, info, "dev", "tok")
+    source = stream.source
+    # External audio files are not in the played stream.
+    assert playback.audio_tracks(source) == [(1, "English - Vorbis"),
+                                             (2, "German - Vorbis")]
+    assert playback.subtitle_tracks(source) == [(4, "English - SRT"),
+                                                (5, "German - PGS")]
+    assert stream.audio_position == 1
+    assert stream.subtitle_path == "/Videos/abc/src/Subtitles/4/0/Stream.srt"
+    report = stream.report(1)
+    assert report["AudioStreamIndex"] == 2 and report["SubtitleStreamIndex"] == 4
+    stream.subtitle_index = 5
+    assert stream.subtitle_path is None
+    assert playback.subtitle_method(source, 5) == "Encode"
+    assert playback.subtitle_method(source, -1) is None
+    stream.subtitle_index = -1
+    assert stream.subtitle_path is None

@@ -46,6 +46,19 @@ Video and Jellyfin's own Android app, within libadwaita's look:
   (`Gdk.InputSource.TOUCHSCREEN`). A mouse click plays or pauses as in
   web players; touch never pauses by accident.
 
+# Audio and subtitles
+
+The header's **Audio and Subtitles** button (video only, shown when
+there is more than one audio track or any subtitle) opens a sheet
+inside the player: radio rows for the audio tracks and for the
+subtitles with **Off** first, titled with Jellyfin's `DisplayTitle`
+("German - AC3 - 5.1"). Side by side when the player is at least
+600 px wide (turned phone, desktop), stacked otherwise; long lists
+scroll. A tap beside the sheet, its close button or Escape closes it.
+It is a sheet in the player and not a popover, because popovers are
+separate surfaces and would not turn with the player. What happens on
+a choice: [playback](playback.md#audio-and-subtitles).
+
 # Rotate to landscape
 
 A **Rotate to Landscape** button in the header (video only, shown while
@@ -79,6 +92,9 @@ it back. Decision: [rotate in the app](decisions/rotate-in-app.md).
   the rotate button is hidden.
 - `tests/test_ui.py`: double tap seeks back and counts up the bubble,
   the controls hide, rotating enters and leaves fullscreen.
+
+- Audio and subtitle sheet at 360×720, turned (two columns) and
+  1000×700; the subtitles stay above the controls while they show.
 
 # Open
 
