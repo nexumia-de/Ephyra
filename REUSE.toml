@@ -16,10 +16,11 @@ precedence = "override"
 SPDX-FileCopyrightText = "2026 suitably"
 SPDX-License-Identifier = "CC0-1.0"
 
-# The demo library: invented titles and images drawn by
-# build-aux/make-demo-data.py.
+# The demo library (invented titles, images drawn by
+# build-aux/make-demo-data.py) and a test clip made with GStreamer's test
+# sources (videotestsrc, audiotestsrc).
 [[annotations]]
-path = "tests/data/demo/**"
+path = ["tests/data/demo/**", "tests/data/media/**"]
 precedence = "override"
 SPDX-FileCopyrightText = "2026 suitably"
 SPDX-License-Identifier = "CC0-1.0"

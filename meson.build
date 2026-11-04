@@ -24,6 +24,7 @@ python.install_sources(
   'ephyra/images.py',
   'ephyra/keyring.py',
   'ephyra/main.py',
+  'ephyra/media.py',
   'ephyra/network.py',
   'ephyra/playback.py',
   'ephyra/player.py',

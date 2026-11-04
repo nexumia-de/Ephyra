@@ -24,7 +24,7 @@ Workaround used: the Jellyfin sources are cloned with git
 After `bash ../phosh-toolkit/setup.sh`:
 
 ```sh
-sudo apt-get install gir1.2-soup-3.0 gir1.2-secret-1 libgtk-4-media-gstreamer \
+sudo apt-get install gir1.2-soup-3.0 gir1.2-secret-1 gir1.2-gstreamer-1.0 \
   gstreamer1.0-plugins-good gstreamer1.0-libav python3-pytest python3-cairo xvfb
 ```
 

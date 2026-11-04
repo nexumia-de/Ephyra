@@ -21,7 +21,7 @@ jobs:
           "${apt[@]}" install -y -q --no-install-recommends \
             python3-pytest python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 \
             gir1.2-soup-3.0 gir1.2-secret-1 glib-networking \
-            libgtk-4-media-gstreamer gstreamer1.0-plugins-base \
+            gir1.2-gstreamer-1.0 gstreamer1.0-plugins-base \
             gstreamer1.0-plugins-good openssl xvfb xauth \
             appstream desktop-file-utils
       - name: Validate metadata
