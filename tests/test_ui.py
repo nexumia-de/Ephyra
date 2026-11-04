@@ -178,3 +178,29 @@ def test_proxy_login_opens_the_login_page(app, demo, monkeypatch):
     conn.emit("proxy-login", demo.url + "/login")
     assert calls and calls[0][0] is window.nav and calls[0][5] == demo.url + "/login"
     window.destroy()
+
+
+def test_playing_video_follows_the_route(app, demo, monkeypatch):
+    """When the route changes (Wi-Fi gone), the media proxy cuts the
+    running stream so the player reconnects through the new address."""
+    from ephyra import keyring
+    from ephyra.window import Window
+    monkeypatch.setattr(router.network, "current_ssids", lambda: None)
+    store = settings.Store()
+    account = store.load()
+    account.remote_url = demo.url
+    account.server_id = demo.library["server"]["Id"]
+    account.user_id = demo.library["user"]["Id"]
+    store.save(account)
+    keyring.store(keyring.TOKEN, "demo")
+    conn = connection.Connection(store, watch=False)
+    window = Window(app, conn)
+    calls = []
+    monkeypatch.setattr(window.proxy, "reroute", lambda: calls.append(1))
+    conn.base_url = demo.url
+    conn.emit("state-changed")
+    assert calls == []          # the first route is no change
+    conn.base_url = "http://127.0.0.1:9"
+    conn.emit("state-changed")
+    assert calls == [1]
+    window.destroy()

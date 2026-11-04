@@ -22,6 +22,9 @@ class Window(Adw.ApplicationWindow):
         self.connection = connection
         self.images = Images(connection)
         self.proxy = MediaProxy(connection.forward)
+        # A video playing when the route changes (Wi-Fi gone) moves to the
+        # new address (phosh-toolkit docs/shared-connection.md).
+        self.proxy.follow(connection)
         self.main = None
         self.nav = Adw.NavigationView()
         self.toasts = Adw.ToastOverlay(child=self.nav)

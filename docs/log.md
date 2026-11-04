@@ -1,6 +1,7 @@
 # Directory Update Log
 
 ## 2026-11-04
+* **Update**: [Connection](connection.md): the route switches reliably while Ephyra runs, and a playing video moves to the new address (nexumia-de/phosh-toolkit#34; the window calls `proxy.follow(connection)`). phosh-toolkit pinned to `main` at `28d8261` until the next tag ([dependencies](dependencies.md)), which also brings the toolkit's HTTP Basic proxy login; Ephyra does not turn it on (Jellyfin reads its token from the `Authorization` header).
 * **Update**: The Flatpak module `phosh-toolkit` is pinned to the toolkit tag `v0.2.0` (commit `9391db4`, with the proxy login) instead of the pull request's commit ([dependencies](dependencies.md)).
 * **Update**: [Connection](connection.md#proxy-login): a reverse proxy's own login (SSO) in front of Jellyfin opens its login page in the app, during setup and when its session runs out, instead of failing with "invalid answer" or signing out; cookies in the keyring. Uses nexumia-de/phosh-toolkit#29 (pinned to its commit until the next toolkit tag).
 * **Update**: The Flatpak module `phosh-toolkit` is pinned to the toolkit tag `v0.1.0` (commit `f018688`) instead of the pull request's commit ([dependencies](dependencies.md)).
