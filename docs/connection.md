@@ -20,6 +20,13 @@ sources:
     title: NetworkManager D-Bus API (ActiveConnections, AccessPoint.Ssid)
 ---
 
+The route, the client certificate handling, the connection form, the
+keyring and the media proxy are phosh-toolkit's `phosh_toolkit` package,
+shared with Nauta; their general behaviour is described in
+[shared connection and playback](../../phosh-toolkit/docs/shared-connection.md).
+This file keeps what is Ephyra's: the Jellyfin probe and sign-in, the
+account file and the secrets' names.
+
 # The owner's setup
 
 One Jellyfin server, reachable
@@ -28,7 +35,7 @@ One Jellyfin server, reachable
 - **elsewhere** through a public URL behind a reverse proxy that
   requires a **client certificate** (mutual TLS).
 
-# Route (`route.py`, `connection.py`)
+# Route (`phosh_toolkit.route`, `phosh_toolkit.router`, `connection.py`)
 
 The account stores a remote address, an optional local address and a
 list of home Wi-Fi names (SSIDs). `route.candidates()` orders them:
@@ -52,6 +59,14 @@ The route is chosen again when `Gio.NetworkMonitor` reports a change
 (debounced 1.5 s), and once after any request that fails with a
 network error (`Connection.call` retries through the new route).
 
+**Switching while the app runs** (owner's report, 2026-11-04: Wi-Fi gone,
+the app stayed on the local address): since nexumia-de/phosh-toolkit#34
+NetworkManager's own signals also trigger a new route, a change during a
+running search searches again, and the window calls
+`proxy.follow(connection)`, so a playing video moves to the new address
+(GStreamer reconnects with a `Range`)
+([toolkit](../../phosh-toolkit/docs/shared-connection.md#route-route-router)).
+
 **SSID**: read from NetworkManager on the system bus
 (`ActiveConnections` → `Type == 802-11-wireless` → `SpecificObject` →
 `AccessPoint.Ssid`, falling back to the connection's `Id`)[^nm-dbus].
@@ -66,7 +81,7 @@ rule, 2026-11-04); a typed `http://` or `https://` is kept, the trailing
 slash goes. The field then shows the address as used. A local Jellyfin
 on plain HTTP is entered as `http://192.168.1.10:8096`.
 
-# Mutual TLS (`tls.py`, `http.py`)
+# Mutual TLS (`phosh_toolkit.tls`, `phosh_toolkit.http`, `phosh_toolkit.certificate`)
 
 - The user picks a **PKCS #12** file (`.p12`/`.pfx`, with password) or a
   **PEM** file with certificate and unencrypted key. Ephyra keeps a
@@ -86,6 +101,24 @@ on plain HTTP is entered as `http://192.168.1.10:8096`.
   certificate" and mark the certificate row.
 - The server certificate is checked against the system's CAs. Servers
   with a private CA are not supported yet (follow-up issue).
+
+# Proxy login
+
+Some reverse proxies have their own login in front of Jellyfin
+(Pangolin's resource authentication, Authelia, Authentik, …). The owner's
+proxy sets it for all resources: mutual TLS worked, then the proxy
+answered `401 Unauthorized` (2026-11-04). The toolkit detects this and
+shows the proxy's login page in a web view
+([proxy login](../../phosh-toolkit/docs/shared-connection.md#proxy-login-proxy_login)):
+
+- during setup, from the connection form;
+- later, when the proxy's session runs out: the router's `proxy-login`
+  signal opens the page from the window (`Window._on_proxy_login`), and
+  the app is not signed out of Jellyfin.
+
+The proxy's cookies are kept in the keyring (kind `proxy-cookies`) and
+loaded by `Connection`; they go only to the server's address, also for
+playback through the media proxy.
 
 # Sign-in and secrets
 

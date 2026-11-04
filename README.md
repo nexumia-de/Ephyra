@@ -56,7 +56,7 @@ bash phosh-toolkit/setup.sh
 
 Run with `python3 -m ephyra` (or with the demo library:
 `EPHYRA_DEMO=$PWD/tests/data/demo python3 -m ephyra`), test with
-`xvfb-run -a python3 -m pytest`. Details:
+`xvfb-run -a python3 -m pytest` with phosh-toolkit checked out next to this repository. Details:
 [docs/dev-environment.md](docs/dev-environment.md).
 
 Agent rules: [AGENTS.md](AGENTS.md). Knowledge bundle:

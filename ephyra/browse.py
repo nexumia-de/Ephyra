@@ -2,7 +2,9 @@
 sections, library grids and search."""
 from gi.repository import Adw, Gio, Gtk, Pango
 
-from ephyra import route, widgets
+from phosh_toolkit import route
+
+from ephyra import widgets
 from ephyra.connection import CONNECTING, OFFLINE
 
 # Item types a library grid lists, by the library's collection type.

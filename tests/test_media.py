@@ -1,4 +1,4 @@
-"""The playbin player (ephyra/media.py) through the demo server and the
+"""The playbin player (phosh_toolkit.media) through the demo server and the
 media proxy: what failed on the phone with Gtk.MediaFile, whose GStreamer
 backend reads http:// through GIO. Video goes to a fakesink where
 gtk4paintablesink is not installed; the data path is the same."""
@@ -12,10 +12,16 @@ gi = pytest.importorskip("gi")
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst  # noqa: E402
 
+from phosh_toolkit.media import Media, init  # noqa: E402
+from phosh_toolkit.proxy import MediaProxy  # noqa: E402
+
 from ephyra.api import Jellyfin  # noqa: E402
 from ephyra.demo import PASSWORD  # noqa: E402
-from ephyra.media import Media, init  # noqa: E402
-from ephyra.proxy import MediaProxy  # noqa: E402
+
+
+def forward(jellyfin):
+    return lambda path: (jellyfin.http, jellyfin.base_url + path,
+                         {"Authorization": jellyfin.authorization()})
 
 CLIP = Path(__file__).resolve().parent / "data" / "media" / "clip.webm"
 
@@ -32,7 +38,7 @@ def stream(demo):
     jellyfin = Jellyfin(device_id="test")
     jellyfin.base_url = demo.url
     jellyfin.authenticate("robin", PASSWORD)
-    proxy = MediaProxy(jellyfin)
+    proxy = MediaProxy(forward(jellyfin))
     yield proxy.url("/Videos/abc/stream?static=true")
     proxy.stop()
 
@@ -68,7 +74,7 @@ def test_undecodable_data_is_an_error(demo):
     jellyfin = Jellyfin(device_id="test")
     jellyfin.base_url = demo.url
     jellyfin.authenticate("robin", PASSWORD)
-    proxy = MediaProxy(jellyfin)
+    proxy = MediaProxy(forward(jellyfin))
     try:
         media = make(proxy.url("/Videos/abc/stream?static=true"))
         media.play()
@@ -78,21 +84,3 @@ def test_undecodable_data_is_an_error(demo):
     finally:
         proxy.stop()
 
-
-def test_stop_releases_the_sink_on_the_main_thread(stream):
-    # gtk4paintablesink aborts the process when it is freed on another
-    # thread; Python's garbage collector may run on a proxy thread, so
-    # stop() must leave nothing of it behind.
-    import threading
-    media = make(stream)
-    media.play()
-    run_until(lambda: media.is_prepared() or media.get_error(), 15)
-    media.stop()
-    assert media.pipeline is None and media.paintable is None
-    media.seek(0)
-    media.set_playing(True)
-    holder = [media]
-    del media
-    thread = threading.Thread(target=holder.clear)
-    thread.start()
-    thread.join()

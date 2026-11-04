@@ -1,11 +1,13 @@
 from gi.repository import Adw, GLib, Gtk
+from phosh_toolkit import proxy_login
+from phosh_toolkit.proxy import MediaProxy
 
 from ephyra import NAME
+from ephyra import connection as connection_module
 from ephyra.browse import MainPage, SearchPage
 from ephyra.detail import DetailPage
 from ephyra.images import Images
 from ephyra.player import PlayerPage
-from ephyra.proxy import MediaProxy
 from ephyra.setup import SetupPage
 
 
@@ -19,7 +21,10 @@ class Window(Adw.ApplicationWindow):
         self.app_icon = app.get_application_id()
         self.connection = connection
         self.images = Images(connection)
-        self.proxy = MediaProxy(connection.jellyfin)
+        self.proxy = MediaProxy(connection.forward)
+        # A video playing when the route changes (Wi-Fi gone) moves to the
+        # new address (phosh-toolkit docs/shared-connection.md).
+        self.proxy.follow(connection)
         self.main = None
         self.nav = Adw.NavigationView()
         self.toasts = Adw.ToastOverlay(child=self.nav)
@@ -33,6 +38,7 @@ class Window(Adw.ApplicationWindow):
         self._collapsed = False
 
         connection.connect("signed-out", self._on_signed_out)
+        connection.connect("proxy-login", self._on_proxy_login)
         if connection.signed_in:
             self.show_library()
             connection.resolve()
@@ -100,6 +106,14 @@ class Window(Adw.ApplicationWindow):
                 self.main.refresh()
             return GLib.SOURCE_REMOVE
         GLib.timeout_add(500, refresh)
+
+    def _on_proxy_login(self, connection, url):
+        """The reverse proxy in front of the server wants its own login
+        (again): show its page (docs/connection.md)."""
+        if connection.signed_in:
+            proxy_login.sign_in(self.nav, connection, connection.jellyfin.http,
+                                connection.proxy_cookies,
+                                connection_module.probe_through, url)
 
     def _on_signed_out(self, *_):
         self.show_setup()

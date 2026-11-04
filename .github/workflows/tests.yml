@@ -14,6 +14,18 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The shared package at the commit the Flatpak manifest pins.
+      - name: Find the pinned phosh-toolkit
+        id: toolkit
+        run: |
+          commit=$(sed -n '/- name: phosh-toolkit/,/commit:/s/^ *commit: *//p' de.nexumia.Ephyra.yml)
+          [ -n "$commit" ] || { echo "::error::No phosh-toolkit commit in the manifest"; exit 1; }
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nexumia-de/phosh-toolkit
+          ref: ${{ steps.toolkit.outputs.commit }}
+          path: .phosh-toolkit
       - name: Install dependencies
         run: |
           apt=(sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=120)
@@ -31,4 +43,6 @@ jobs:
           grep -Eiq '^X-Purism-FormFactor=.*mobile;' data/*.desktop
       # test_ui.py drives the real widgets and needs a display.
       - name: Run tests
+        env:
+          PYTHONPATH: .phosh-toolkit/lib
         run: xvfb-run -a /usr/bin/python3 -m pytest -v

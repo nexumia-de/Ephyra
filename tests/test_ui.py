@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import P12_PASSWORD, run_until
+from conftest import P12_PASSWORD, owning_main_context, run_until
 
 if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
     pytest.skip("needs a display", allow_module_level=True)
@@ -17,11 +17,11 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw  # noqa: E402
 
+from phosh_toolkit import connection_form, router  # noqa: E402
+from phosh_toolkit.http import Client  # noqa: E402
+
 from ephyra import connection, settings, setup  # noqa: E402
 from ephyra.demo import PASSWORD  # noqa: E402
-from ephyra.http import Client  # noqa: E402
-
-pytestmark = pytest.mark.usefixtures("main_context")
 
 CLIP = Path(__file__).resolve().parent / "data" / "media" / "clip.webm"
 
@@ -48,12 +48,13 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
     from ephyra.preferences import PreferencesDialog
     from ephyra.window import Window
 
-    def trusting_client():
-        client = Client()
+    def trusting_client(user_agent):
+        client = Client(user_agent)
         client.tls_database = trust
         return client
-    monkeypatch.setattr(setup, "Client", trusting_client)
-    monkeypatch.setattr(connection.network, "current_ssids", lambda: {"Home"})
+    monkeypatch.setattr(connection_form, "Client", trusting_client)
+    monkeypatch.setattr(router.network, "current_ssids", lambda: {"Home"})
+    monkeypatch.setattr(connection_form.network, "current_ssids", lambda: {"Home"})
 
     conn = connection.Connection(watch=False)
     conn.jellyfin.http.tls_database = trust
@@ -107,42 +108,43 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
     assert isinstance(detail, DetailPage)
     run_until(lambda: detail.stack.get_visible_child_name() == "content")
 
-    # The demo "video" is not media: the player shows its error page and
-    # offers server-side conversion.
-    window.play(detail.item, 0)
-    player = visible(window)
-    assert isinstance(player, PlayerPage)
-    run_until(lambda: player.stream is not None)
-    assert player.stream.path.startswith(f"/Videos/{movie['Id']}/stream")
-    run_until(lambda: player.stack.get_visible_child_name() == "error", 20)
-    window.nav.pop()
-    run_until(lambda: player.stopped)
-    assert isinstance(visible(window), DetailPage)
+    with owning_main_context():
+        # The demo "video" is not media: the player shows its error page and
+        # offers server-side conversion.
+        window.play(detail.item, 0)
+        player = visible(window)
+        assert isinstance(player, PlayerPage)
+        run_until(lambda: player.stream is not None)
+        assert player.stream.path.startswith(f"/Videos/{movie['Id']}/stream")
+        run_until(lambda: player.stack.get_visible_child_name() == "error", 20)
+        window.nav.pop()
+        run_until(lambda: player.stopped)
+        assert isinstance(visible(window), DetailPage)
 
-    # A real clip: double tap seeks and shows the bubble, the rotate
-    # button turns the player and goes fullscreen (docs/player-controls.md).
-    mtls_demo.media = CLIP.read_bytes()
-    window.play(detail.item, 2)
-    player = visible(window)
-    run_until(lambda: player.media is not None and player.media.is_seekable()
-              and player.position() >= 1.5, 20)
-    player.media.pause()
-    player.tap(1, "back", True)
-    player.tap(2, "back", True)
-    assert player.bubbles["back"].get_reveal_child()
-    assert player.bubbles["back"].label.get_label() == "10 s"
-    run_until(lambda: player.position() < 1)
-    player.tap(3, "back", True)
-    assert player.bubbles["back"].label.get_label() == "20 s"
-    assert not player.center.get_reveal_child()
-    player.toggle_rotation()
-    assert player.rotator.props.rotated
-    run_until(lambda: window.is_fullscreen())
-    player.toggle_rotation()
-    assert not player.rotator.props.rotated
-    run_until(lambda: not window.is_fullscreen())
-    window.nav.pop()
-    run_until(lambda: player.stopped)
+        # A real clip: double tap seeks and shows the bubble, the rotate
+        # button turns the player and goes fullscreen (docs/player-controls.md).
+        mtls_demo.media = CLIP.read_bytes()
+        window.play(detail.item, 2)
+        player = visible(window)
+        run_until(lambda: player.media is not None and player.media.is_seekable()
+                  and player.position() >= 1.5, 20)
+        player.media.pause()
+        player.tap(1, "back", True)
+        player.tap(2, "back", True)
+        assert player.bubbles["back"].get_reveal_child()
+        assert player.bubbles["back"].label.get_label() == "10 s"
+        run_until(lambda: player.position() < 1)
+        player.tap(3, "back", True)
+        assert player.bubbles["back"].label.get_label() == "20 s"
+        assert not player.center.get_reveal_child()
+        player.toggle_rotation()
+        assert player.rotator.props.rotated
+        run_until(lambda: window.is_fullscreen())
+        player.toggle_rotation()
+        assert not player.rotator.props.rotated
+        run_until(lambda: not window.is_fullscreen())
+        window.nav.pop()
+        run_until(lambda: player.stopped)
 
     dialog = PreferencesDialog(window)
     dialog.present(window)
@@ -162,7 +164,7 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
 def test_server_rejecting_the_token_shows_setup(app, demo, monkeypatch):
     from ephyra import keyring
     from ephyra.window import Window
-    monkeypatch.setattr(connection.network, "current_ssids", lambda: None)
+    monkeypatch.setattr(router.network, "current_ssids", lambda: None)
     store = settings.Store()
     account = store.load()
     account.remote_url = demo.url
@@ -178,3 +180,56 @@ def test_server_rejecting_the_token_shows_setup(app, demo, monkeypatch):
     window.destroy()
 
 
+
+
+def test_proxy_login_opens_the_login_page(app, demo, monkeypatch):
+    """The router's "proxy-login" signal (the proxy's session ran out)
+    opens the toolkit's login page; its cookies are loaded at start."""
+    from phosh_toolkit import proxy_login
+    from phosh_toolkit.http import origin
+
+    from ephyra import keyring
+    from ephyra.window import Window
+    monkeypatch.setattr(router.network, "current_ssids", lambda: None)
+    proxy_login.CookieJar(keyring.KEYRING).save({origin(demo.url): "s=1"})
+    store = settings.Store()
+    account = store.load()
+    account.remote_url = demo.url
+    account.server_id = demo.library["server"]["Id"]
+    account.user_id = demo.library["user"]["Id"]
+    store.save(account)
+    keyring.store(keyring.TOKEN, "t")
+    conn = connection.Connection(store, watch=False)
+    assert conn.jellyfin.http.cookies == {origin(demo.url): "s=1"}
+    calls = []
+    monkeypatch.setattr(proxy_login, "sign_in", lambda *a: calls.append(a))
+    window = Window(app, conn)
+    conn.emit("proxy-login", demo.url + "/login")
+    assert calls and calls[0][0] is window.nav and calls[0][5] == demo.url + "/login"
+    window.destroy()
+
+
+def test_playing_video_follows_the_route(app, demo, monkeypatch):
+    """When the route changes (Wi-Fi gone), the media proxy cuts the
+    running stream so the player reconnects through the new address."""
+    from ephyra import keyring
+    from ephyra.window import Window
+    monkeypatch.setattr(router.network, "current_ssids", lambda: None)
+    store = settings.Store()
+    account = store.load()
+    account.remote_url = demo.url
+    account.server_id = demo.library["server"]["Id"]
+    account.user_id = demo.library["user"]["Id"]
+    store.save(account)
+    keyring.store(keyring.TOKEN, "demo")
+    conn = connection.Connection(store, watch=False)
+    window = Window(app, conn)
+    calls = []
+    monkeypatch.setattr(window.proxy, "reroute", lambda: calls.append(1))
+    conn.base_url = demo.url
+    conn.emit("state-changed")
+    assert calls == []          # the first route is no change
+    conn.base_url = "http://127.0.0.1:9"
+    conn.emit("state-changed")
+    assert calls == [1]
+    window.destroy()

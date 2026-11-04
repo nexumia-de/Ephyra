@@ -1,16 +1,18 @@
-"""Client, mutual TLS, the split route and the media proxy against the demo
-server."""
+"""The Jellyfin API, the connection on top of phosh_toolkit's router, and
+the media proxy against the demo server, also behind mutual TLS. The
+toolkit's own tests cover the router and the proxy in general."""
 import urllib.request
 
 import pytest
+from phosh_toolkit import router, tls
+from phosh_toolkit.http import AUTH, CERTIFICATE_REQUIRED, Client, HttpError
+from phosh_toolkit.proxy import MediaProxy
+from phosh_toolkit.route import LOCAL, REMOTE
 
 from conftest import P12_PASSWORD, run_until
-from ephyra import connection, keyring, playback, settings, tls
+from ephyra import USER_AGENT, connection, keyring, playback, settings
 from ephyra.api import Jellyfin
 from ephyra.demo import PASSWORD, TOKEN
-from ephyra.http import AUTH, CERTIFICATE_REQUIRED, Client, HttpError
-from ephyra.proxy import MediaProxy
-from ephyra.route import LOCAL, REMOTE
 
 
 def signed_in(url, http=None):
@@ -51,25 +53,13 @@ def test_wrong_password(demo):
     assert e.value.kind == AUTH
 
 
-def test_certificate_formats(pki):
-    cert = tls.load((pki / "client.p12").read_bytes(), P12_PASSWORD)
-    assert tls.describe(cert)[0] == "Robin's phone"
-    tls.load((pki / "client-combined.pem").read_bytes())
-    with pytest.raises(tls.PasswordNeeded):
-        tls.load((pki / "client.p12").read_bytes(), "wrong")
-    with pytest.raises(tls.CertificateError):
-        tls.load((pki / "client.pem").read_bytes())   # no key
-    with pytest.raises(tls.CertificateError):
-        tls.load(b"\x00garbage")
-
-
 def test_mtls_requires_the_client_certificate(mtls_demo, pki, trust):
-    http = Client()
+    http = Client(USER_AGENT)
     http.tls_database = trust
     with pytest.raises(HttpError) as e:
         Jellyfin(http=http).public_info(mtls_demo.url)
     assert e.value.kind == CERTIFICATE_REQUIRED
-    http = Client()
+    http = Client(USER_AGENT)
     http.tls_database = trust
     http.certificate = tls.load((pki / "client.p12").read_bytes(), P12_PASSWORD)
     jellyfin = signed_in(mtls_demo.url, http)
@@ -83,7 +73,7 @@ def _connection(local, remote, networks=(), ssids=None, monkeypatch=None):
     account.home_networks = list(networks)
     account.server_id = "f" * 32 if local == "bad" else ""
     store.save(account)
-    monkeypatch.setattr(connection.network, "current_ssids", lambda: ssids)
+    monkeypatch.setattr(router.network, "current_ssids", lambda: ssids)
     return connection.Connection(store, watch=False)
 
 
@@ -120,7 +110,7 @@ def test_other_server_at_local_address_is_skipped(demo, monkeypatch):
     conn = _connection(demo.url, "", [], None, monkeypatch)
     conn.account.server_id = "0" * 32
     assert isinstance(_resolve(conn), HttpError)
-    assert conn.state == connection.OFFLINE
+    assert conn.state == router.OFFLINE
 
 
 def test_sign_in_stores_the_token(demo, monkeypatch):
@@ -137,8 +127,8 @@ def test_sign_in_stores_the_token(demo, monkeypatch):
 
 def test_probe_reports_each_address(demo, monkeypatch):
     done = []
-    connection.probe(Client(), demo.url, "http://127.0.0.1:9",
-                     lambda r, e: done.append((r, e)))
+    router.probe_addresses(connection.probe_with(Client(USER_AGENT)), demo.url,
+                           "http://127.0.0.1:9", lambda r, e: done.append((r, e)))
     run_until(lambda: done)
     answers, error = done[0]
     assert error is None
@@ -146,15 +136,17 @@ def test_probe_reports_each_address(demo, monkeypatch):
     assert isinstance(answers[LOCAL], HttpError)
 
 
-def test_proxy_forwards_ranges_through_mtls(mtls_demo, pki, trust):
-    http = Client()
+def test_proxy_forwards_ranges_through_mtls(mtls_demo, pki, trust, monkeypatch):
+    http = Client(USER_AGENT)
     http.tls_database = trust
     http.certificate = tls.load((pki / "client.p12").read_bytes(), P12_PASSWORD)
     jellyfin = signed_in(mtls_demo.url, http)
     item = jellyfin.resume()[0]
     info = jellyfin.playback_info(item["Id"], 0)
     stream = playback.choose(item, info, "test", jellyfin.token)
-    proxy = MediaProxy(jellyfin)
+    conn = _connection("", mtls_demo.url, monkeypatch=monkeypatch)
+    conn.jellyfin = jellyfin
+    proxy = MediaProxy(conn.forward)
     try:
         url = proxy.url(stream.path)
         assert "api_key" not in url and TOKEN not in url
@@ -169,10 +161,3 @@ def test_proxy_forwards_ranges_through_mtls(mtls_demo, pki, trust):
         proxy.stop()
     method, path, headers = mtls_demo.requests[-1]
     assert path.endswith("/stream") and f'Token="{TOKEN}"' in headers["Authorization"]
-
-
-def test_nginx_certificate_page_counts_as_certificate_required():
-    from ephyra.http import is_certificate_page
-    assert is_certificate_page(b"<html><head><title>400 No required SSL "
-                               b"certificate was sent</title></head>")
-    assert not is_certificate_page(b'{"Id": "abc"}')

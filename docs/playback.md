@@ -62,7 +62,7 @@ none · GStreamer: No decoder available for type 'video/x-h265'.`
 (`playback.describe`, `player.gst_reason`). The same line is logged as a
 warning.
 
-# Local media proxy (`proxy.py`)
+# Local media proxy (`phosh_toolkit.proxy`)
 
 GTK plays media with GStreamer (`GtkMediaFile`). GStreamer's HTTP
 source and its HLS downloader can't present a client certificate, and
@@ -71,8 +71,8 @@ the token must not go into URLs. So the player opens
 
 - a `ThreadingHTTPServer` on 127.0.0.1, random port, a random 32-byte
   path secret (other local programs can't use it);
-- each request is forwarded to the **current** route's base URL with the
-  `Authorization` header and the client certificate (libsoup, one
+- each request is forwarded to the **current** route's base URL
+  (`Connection.forward`) with the `Authorization` header and the client certificate (libsoup, one
   session per thread), `Accept-Encoding: identity` so lengths stay
   right;
 - `Range`/`If-Range` go up, `Content-Type`, `Content-Length`,
@@ -82,9 +82,9 @@ the token must not go into URLs. So the player opens
 - HLS playlists from Jellyfin use relative URLs, so segments go through
   the proxy too.
 
-# Player (`player.py`, `media.py`)
+# Player (`player.py`, `phosh_toolkit.media`)
 
-GStreamer's `playbin3` (`ephyra/media.Media`) plays the proxy URL;
+GStreamer's `playbin3` (`phosh_toolkit.media.Media`) plays the proxy URL;
 video goes to `gtk4paintablesink` (inside `glsinkbin` when it has a GL
 context) and its paintable into a `Gtk.Picture`; audio shows the album
 cover instead. `Media` offers the part of the `GtkMediaStream` API the
@@ -111,11 +111,6 @@ Resume: after `prepared` it seeks to the stored position. Reports to the
 server[^jf-playstate]: `/Sessions/Playing` when prepared, `/Progress`
 every 10 s and on play/pause, `/Stopped` when the page closes;
 afterwards the detail and home pages reload to show the new position.
-`Media.stop()` releases the pipeline and the paintable on the main
-thread: gtk4paintablesink aborts the whole app ("Value dropped on a
-different thread than where it was created") when Python's garbage
-collector happens to free it on a proxy thread, which can follow
-leaving the player (reproduced 2026-11-04, `tests/test_media.py`).
 While playing, the app inhibits idle and suspend. Taps, double taps,
 keys and rotating: [player controls](player-controls.md).
 

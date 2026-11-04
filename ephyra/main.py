@@ -84,9 +84,8 @@ class Application(Adw.Application):
     def apply_style(self, style):
         """Follow the system, or the light or dark style chosen in the
         preferences (docs/design.md)."""
-        from ephyra.settings import color_scheme
-        Adw.StyleManager.get_default().set_color_scheme(
-            getattr(Adw.ColorScheme, color_scheme(style)))
+        from phosh_toolkit import style as styles
+        styles.apply(style)
 
     def do_activate(self):
         from ephyra.window import Window
