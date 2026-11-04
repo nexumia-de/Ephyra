@@ -165,6 +165,10 @@ class Jellyfin:
              "EnableDirectPlay": not force_transcode,
              "EnableDirectStream": not force_transcode,
              "EnableTranscoding": True,
+             # Converting because the phone failed: re-encode both
+             # streams instead of copying them into HLS.
+             "AllowVideoStreamCopy": not force_transcode,
+             "AllowAudioStreamCopy": not force_transcode,
              "AutoOpenLiveStream": True,
              "DeviceProfile": device_profile(max_bitrate)})
 

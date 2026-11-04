@@ -60,9 +60,11 @@ for it. Without access (other distributions, desktop without NM) the
 app tries the local address first everywhere, which the server id
 check keeps safe.
 
-Addresses are typed freely and normalized (`route.normalize`): an IP or
-`*.local` host without scheme gets `http://`, a host name gets
-`https://`, the trailing slash goes.
+Addresses are typed freely and normalized (`route.normalize`): without
+a scheme they get `https://`, for the local address too (the owner's
+rule, 2026-11-04); a typed `http://` or `https://` is kept, the trailing
+slash goes. The field then shows the address as used. A local Jellyfin
+on plain HTTP is entered as `http://192.168.1.10:8096`.
 
 # Mutual TLS (`tls.py`, `http.py`)
 

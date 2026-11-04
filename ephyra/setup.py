@@ -202,10 +202,14 @@ class ConnectionForm:
                 values.append("")
                 continue
             try:
-                values.append(route.normalize(text))
+                url = route.normalize(text)
             except route.AddressError:
                 row.add_css_class("error")
                 raise
+            # Show what is used, e.g. with the added "https://".
+            if url != text:
+                row.set_text(url)
+            values.append(url)
         if not any(values):
             self.remote.add_css_class("error")
             raise route.AddressError("Enter the server address")

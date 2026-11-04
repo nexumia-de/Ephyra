@@ -1,6 +1,5 @@
 """Which server address to use: the local one at home, the remote one
 elsewhere (docs/connection.md). Pure functions, no GTK."""
-import ipaddress
 from urllib.parse import urlsplit, urlunsplit
 
 LOCAL = "local"
@@ -17,16 +16,15 @@ class AddressError(ValueError):
 
 def normalize(text):
     """A server address as typed by the user, as a base URL without a
-    trailing slash. "192.168.1.5:8096" becomes "http://192.168.1.5:8096",
-    "media.example.org" becomes "https://media.example.org". Raises
-    AddressError for anything that is not an http(s) URL."""
+    trailing slash. Without a scheme it gets "https://" (the owner's rule,
+    docs/connection.md), for local addresses too; a typed "http://" or
+    "https://" is kept. Raises AddressError for anything that is not an
+    http(s) URL."""
     text = (text or "").strip()
     if not text:
         raise AddressError("Enter an address")
     if "://" not in text:
-        host = text.split("/", 1)[0].rsplit(":", 1)[0].strip("[]")
-        scheme = "http" if _is_ip(host) or host.endswith(".local") else "https"
-        text = f"{scheme}://{text}"
+        text = f"https://{text}"
     parts = urlsplit(text)
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise AddressError("Use an address like https://media.example.org")
@@ -36,14 +34,6 @@ def normalize(text):
         raise AddressError("The port is not a number") from None
     path = parts.path.rstrip("/")
     return urlunsplit((parts.scheme, parts.netloc, path, "", ""))
-
-
-def _is_ip(host):
-    try:
-        ipaddress.ip_address(host)
-    except ValueError:
-        return False
-    return True
 
 
 def candidates(remote_url, local_url, home_networks, ssids):

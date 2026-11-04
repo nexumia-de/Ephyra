@@ -29,6 +29,23 @@ def test_transcode_path():
     assert stream.path == "/videos/abc/master.m3u8?MediaSourceId=src"
 
 
+def test_transcode_url_loses_the_token():
+    info = {"MediaSources": [{
+        "Id": "src", "SupportsDirectPlay": False, "SupportsTranscoding": True,
+        "TranscodingUrl": "/videos/abc/master.m3u8?MediaSourceId=src&ApiKey=secret&api_key=x"}]}
+    stream = playback.choose(ITEM, info, "dev", "secret")
+    assert stream.path == "/videos/abc/master.m3u8?MediaSourceId=src"
+
+
+def test_user_may_not_transcode():
+    # MediaSourceManager: SupportsTranscoding = EnableVideoPlaybackTranscoding
+    info = {"MediaSources": [{"Id": "src", "SupportsDirectPlay": False,
+                              "SupportsDirectStream": False,
+                              "SupportsTranscoding": False}]}
+    with pytest.raises(playback.NoPlayableSource, match="requires transcoding"):
+        playback.choose(ITEM, info, "dev", "tok")
+
+
 def test_audio_path():
     info = {"MediaSources": [{"Id": "a", "SupportsDirectPlay": True}]}
     stream = playback.choose({"Id": "a", "MediaType": "Audio"}, info, "d", "t")
