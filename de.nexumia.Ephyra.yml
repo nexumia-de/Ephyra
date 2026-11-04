@@ -32,9 +32,7 @@ modules:
     sources:
       - type: git
         url: https://github.com/nexumia-de/phosh-toolkit.git
-        # phosh-toolkit main with #36 merged (audio track choice, no
-        # automatic subtitles, Media.stop() on the main thread); replaced
-        # by the next toolkit tag.
+        tag: v0.3.0
         commit: c29a2a106dd2328c24d0201f1cc31f7da7c695f2
         x-checker-data:
           type: git
