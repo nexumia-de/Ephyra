@@ -15,7 +15,7 @@ import gi  # noqa: E402
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw  # noqa: E402
+from gi.repository import Adw, Gtk  # noqa: E402
 
 from phosh_toolkit import connection_form, router  # noqa: E402
 from phosh_toolkit.http import Client  # noqa: E402
@@ -130,6 +130,28 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
         run_until(lambda: player.media is not None and player.media.is_seekable()
                   and player.position() >= 1.5, 20)
         player.media.pause()
+
+        # A tap on a button in the middle reaches the button: nothing lies
+        # on top of it, also not the closed audio and subtitle sheet.
+        from gi.repository import Graphene
+
+        def tapped(button):
+            point = Graphene.Point()
+            point.init(button.get_width() / 2, button.get_height() / 2)
+            ok, at = button.compute_point(player.overlay, point)
+            target = player.overlay.pick(at.x, at.y, Gtk.PickFlags.DEFAULT)
+            return target is button or (target is not None
+                                        and target.is_ancestor(button))
+        buttons = list(player.transport)
+        assert player.play_button in buttons and len(buttons) == 3
+        run_until(lambda: all(b.get_mapped() and b.get_width() > 0 for b in buttons))
+        assert all(tapped(b) for b in buttons)
+        player.open_tracks()
+        player.close_tracks()
+        player._show_controls()
+        run_until(lambda: not player.sheet.get_child_revealed())
+        assert all(tapped(b) for b in buttons)
+
         player.tap(1, "back", True)
         player.tap(2, "back", True)
         assert player.bubbles["back"].get_reveal_child()
@@ -181,7 +203,9 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
         assert player.stream.report(0)["SubtitleStreamIndex"] == 3
         player.choose_subtitle(-1)
         run_until(lambda: not player.subtitle_label.get_visible())
-        # A tap beside the sheet closes it.
+        # A choice closes the sheet, and so does a tap beside it.
+        assert not player.sheet.get_reveal_child()
+        player.open_tracks()
         player._on_tap(None, 1, 1, 1)
         assert not player.sheet.get_reveal_child()
         window.nav.pop()
