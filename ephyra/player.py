@@ -241,9 +241,13 @@ class PlayerPage(Adw.NavigationPage):
         clamp = Adw.Clamp(child=box, maximum_size=760)
         # Filling the overlay, so a long list scrolls instead of running
         # past the edge (the overlay gives an END child its natural height).
+        self.sheet_box = box
+        # can_target only while open: closed, the revealer still covers the
+        # whole video and took the taps meant for the buttons in the middle
+        # (found on the phone, 2026-11-04).
         return Gtk.Revealer(child=clamp, reveal_child=False, valign=Gtk.Align.FILL,
                             transition_type=Gtk.RevealerTransitionType.SLIDE_UP,
-                            margin_top=48)
+                            margin_top=48, can_target=False)
 
     def _track_group(self, title, tracks, current, callback):
         group = Adw.PreferencesGroup(title=title)
@@ -292,9 +296,11 @@ class PlayerPage(Adw.NavigationPage):
                 "Subtitles", [(-1, "Off")] + subtitles, current,
                 self.choose_subtitle))
         self._hide_controls()
+        self.sheet.set_can_target(True)
         self.sheet.set_reveal_child(True)
 
     def close_tracks(self):
+        self.sheet.set_can_target(False)
         self.sheet.set_reveal_child(False)
 
     def choose_audio(self, index):
@@ -302,6 +308,7 @@ class PlayerPage(Adw.NavigationPage):
         if stream is None or index == stream.audio_index:
             return
         self.audio_index = index
+        self.close_tracks()
         if stream.method != playback.TRANSCODE:
             # The file has every track: switch inside GStreamer.
             stream.audio_index = index
@@ -322,6 +329,11 @@ class PlayerPage(Adw.NavigationPage):
         self.subtitle_index = index
         burned = playback.subtitle_method(stream.source, current) == "Encode"
         wanted = playback.subtitle_method(stream.source, index)
+        log.debug("subtitle %s -> %s (%s, burned now %s)", current, index,
+                  wanted, burned)
+        # The sheet covers the bottom of the video, where the subtitle
+        # shows: close it on a choice.
+        self.close_tracks()
         if burned or wanted == "Encode":
             # Burned into the picture by the server, or no longer.
             self._reload()
@@ -336,9 +348,15 @@ class PlayerPage(Adw.NavigationPage):
         self.subtitle_label.set_visible(False)
         path = self.stream.subtitle_path if self.stream else None
         if not path:
+            if self.stream and (self.stream.subtitle_index or -1) >= 0:
+                log.debug("subtitle %s: nothing to fetch (%s)",
+                          self.stream.subtitle_index,
+                          playback.subtitle_method(self.stream.source,
+                                                   self.stream.subtitle_index))
             return
         jellyfin = self.conn.jellyfin
         wanted = self.stream.subtitle_index
+        log.debug("subtitle %s: fetching %s", wanted, path)
 
         def fetch():
             return subtitles.Track(subtitles.parse_srt(jellyfin.text(path)))
@@ -350,6 +368,9 @@ class PlayerPage(Adw.NavigationPage):
                 log.warning("subtitles: %s", error)
                 self.window.toast("Can\u2019t load the subtitles")
                 return
+            log.debug("subtitle %s: %d cues", wanted, len(track.cues))
+            if not track.cues:
+                self.window.toast("The subtitles are empty")
             self.subtitle_track = track
             if not self._subtitle_timer:
                 self._subtitle_timer = GLib.timeout_add(SUBTITLE_EVERY,
@@ -407,6 +428,17 @@ class PlayerPage(Adw.NavigationPage):
         self.audio_index = stream.audio_index
         self.subtitle_index = stream.subtitle_index
         log.info("%s %s", stream.method, stream.path)
+        for track in stream.source.get("MediaStreams") or []:
+            if track.get("Type") == "Subtitle":
+                # Never the DeliveryUrl itself: it carries the token.
+                log.debug("subtitle track %s: %s, external file %s, text %s, "
+                          "delivery %s, url %s, url elsewhere %s",
+                          track.get("Index"), track.get("Codec"),
+                          track.get("IsExternal"), track.get("IsTextSubtitleStream"),
+                          track.get("DeliveryMethod"), bool(track.get("DeliveryUrl")),
+                          track.get("IsExternalUrl"))
+        log.debug("chosen: audio %s, subtitle %s", stream.audio_index,
+                  stream.subtitle_index)
         if self.item.get("MediaType") == "Audio" and not self._timers:
             self._show_cover()
         self._start_media()
@@ -618,8 +650,8 @@ class PlayerPage(Adw.NavigationPage):
         if self.sheet.get_reveal_child():
             # A tap beside the open track sheet closes it.
             target = self.overlay.pick(x, y, Gtk.PickFlags.DEFAULT)
-            if target is None or not (target is self.sheet or
-                                      target.is_ancestor(self.sheet)):
+            if target is None or not (target is self.sheet_box or
+                                      target.is_ancestor(self.sheet_box)):
                 self.close_tracks()
             return
         device = gesture.get_current_event_device()

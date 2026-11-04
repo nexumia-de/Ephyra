@@ -54,7 +54,12 @@ inside the player: radio rows for the audio tracks and for the
 subtitles with **Off** first, titled with Jellyfin's `DisplayTitle`
 ("German - AC3 - 5.1"). Side by side when the player is at least
 600 px wide (turned phone, desktop), stacked otherwise; long lists
-scroll. A tap beside the sheet, its close button or Escape closes it.
+scroll. A choice, a tap beside the sheet, its close button or Escape
+closes it (it covers the bottom of the video, where the subtitle shows).
+While closed it takes no taps (`can_target` false): the closed revealer
+still covered the whole video and swallowed the taps meant for the
+buttons in the middle (owner, on the phone, 2026-11-04;
+`tests/test_ui.py` now picks the widget under each button).
 It is a sheet in the player and not a popover, because popovers are
 separate surfaces and would not turn with the player. What happens on
 a choice: [playback](playback.md#audio-and-subtitles).
