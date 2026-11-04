@@ -18,6 +18,7 @@ Change history is in [log.md](log.md).
 * [Jellyfin look](design.md) - Jellyfin's blue accent, light/dark from the system or the Style preference, poster cards, backdrops on libadwaita, with a review checklist.
 * [Connection](connection.md) - Local address on the home Wi-Fi, remote address elsewhere, server id check, client certificates for mutual TLS, token in the keyring.
 * [Playback](playback.md) - Device profile, direct play or HLS transcoding, the local media proxy, resume and progress reports.
+* [Player controls](player-controls.md) - Double tap on the sides to seek, big buttons over the video, rotate to landscape inside the app.
 
 # Development
 
@@ -27,4 +28,4 @@ Change history is in [log.md](log.md).
 
 # Decision records
 
-* [Decisions](decisions/index.md) - Name, licence, Python, Jellyfin look, local media proxy.
+* [Decisions](decisions/index.md) - Name, licence, Python, Jellyfin look, local media proxy, playbin, rotating in the app.

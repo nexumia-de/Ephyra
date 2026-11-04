@@ -2,10 +2,11 @@
 mutual TLS: setup, sign in, home, a library, details, the player and the
 preferences. Needs a display (CI runs pytest under xvfb-run)."""
 import os
+from pathlib import Path
 
 import pytest
 
-from conftest import P12_PASSWORD, run_until
+from conftest import P12_PASSWORD, owning_main_context, run_until
 
 if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
     pytest.skip("needs a display", allow_module_level=True)
@@ -21,6 +22,8 @@ from phosh_toolkit.http import Client  # noqa: E402
 
 from ephyra import connection, settings, setup  # noqa: E402
 from ephyra.demo import PASSWORD  # noqa: E402
+
+CLIP = Path(__file__).resolve().parent / "data" / "media" / "clip.webm"
 
 
 @pytest.fixture(scope="module")
@@ -105,17 +108,48 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
     assert isinstance(detail, DetailPage)
     run_until(lambda: detail.stack.get_visible_child_name() == "content")
 
-    # The demo "video" is not media: the player shows its error page and
-    # offers server-side conversion.
-    window.play(detail.item, 0)
-    player = visible(window)
-    assert isinstance(player, PlayerPage)
-    run_until(lambda: player.stream is not None)
-    assert player.stream.path.startswith(f"/Videos/{movie['Id']}/stream")
-    run_until(lambda: player.stack.get_visible_child_name() == "error", 20)
-    window.nav.pop()
-    run_until(lambda: player.stopped)
-    assert isinstance(visible(window), DetailPage)
+    with owning_main_context():
+        # The demo "video" is not media: the player shows its error page and
+        # offers server-side conversion.
+        window.play(detail.item, 0)
+        player = visible(window)
+        assert isinstance(player, PlayerPage)
+        run_until(lambda: player.stream is not None)
+        assert player.stream.path.startswith(f"/Videos/{movie['Id']}/stream")
+        run_until(lambda: player.stack.get_visible_child_name() == "error", 20)
+        window.nav.pop()
+        run_until(lambda: player.stopped)
+        assert isinstance(visible(window), DetailPage)
+
+        # A real clip: double tap seeks and shows the bubble, the rotate
+        # button turns the player and goes fullscreen (docs/player-controls.md).
+        mtls_demo.media = CLIP.read_bytes()
+        window.play(detail.item, 2)
+        player = visible(window)
+        run_until(lambda: player.media is not None and player.media.is_seekable()
+                  and player.position() >= 1.5, 20)
+        player.media.pause()
+        player.tap(1, "back", True)
+        player.tap(2, "back", True)
+        assert player.bubbles["back"].get_reveal_child()
+        assert player.bubbles["back"].label.get_label() == "10 s"
+        run_until(lambda: player.position() < 1)
+        player.tap(3, "back", True)
+        assert player.bubbles["back"].label.get_label() == "20 s"
+        assert not player.center.get_reveal_child()
+        # Rotating asks for fullscreen; whether the window gets it is up to
+        # the compositor (CI's Xvfb has no window manager, phoc grants it).
+        requests = []
+        with pytest.MonkeyPatch.context() as fake:
+            fake.setattr(window, "fullscreen", lambda: requests.append("on"))
+            fake.setattr(window, "unfullscreen", lambda: requests.append("off"))
+            fake.setattr(window, "is_fullscreen", lambda: requests[-1:] == ["on"])
+            player.toggle_rotation()
+            assert player.rotator.props.rotated and requests == ["on"]
+            player.toggle_rotation()
+            assert not player.rotator.props.rotated and requests == ["on", "off"]
+        window.nav.pop()
+        run_until(lambda: player.stopped)
 
     dialog = PreferencesDialog(window)
     dialog.present(window)

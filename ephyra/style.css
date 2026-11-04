@@ -49,3 +49,22 @@
 .ephyra-video {
   background-color: black;
 }
+
+/* Play, back and forward over the video: large touch targets. */
+.ephyra-transport > button {
+  min-width: 56px;
+  min-height: 56px;
+  -gtk-icon-size: 24px;
+}
+
+.ephyra-transport > button.ephyra-play {
+  min-width: 72px;
+  min-height: 72px;
+  -gtk-icon-size: 32px;
+}
+
+/* Double-tap seeking: the seconds skipped, on the tapped side. */
+.ephyra-seek-bubble {
+  padding: 18px;
+  border-radius: 999px;
+}

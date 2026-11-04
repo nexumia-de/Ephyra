@@ -111,8 +111,8 @@ Resume: after `prepared` it seeks to the stored position. Reports to the
 server[^jf-playstate]: `/Sessions/Playing` when prepared, `/Progress`
 every 10 s and on play/pause, `/Stopped` when the page closes;
 afterwards the detail and home pages reload to show the new position.
-While playing, the app inhibits idle and suspend. Keys: Space, ←/→
-(−10/+30 s), F or F11, Escape.
+While playing, the app inhibits idle and suspend. Taps, double taps,
+keys and rotating: [player controls](player-controls.md).
 
 **GStreamer in the phone's runtime** (`gst-inspect-1.0` inside
 `de.nexumia.Ephyra.Devel`, GNOME 51 with the `codecs-extra` 26.08

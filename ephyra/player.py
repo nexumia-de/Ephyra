@@ -1,6 +1,6 @@
-"""The player: GTK's GStreamer media backend plays the local proxy URL
-(docs/playback.md); touch controls over the video, progress reported to
-the server."""
+"""The player: GStreamer plays the local proxy URL (docs/playback.md);
+touch controls over the video (docs/player-controls.md), progress
+reported to the server."""
 import logging
 
 from gi.repository import Adw, Gdk, GLib, Gtk
@@ -9,12 +9,14 @@ from phosh_toolkit import route
 from phosh_toolkit.media import Media
 
 from ephyra import images, playback, text, widgets
+from ephyra.rotator import Rotator
 
 log = logging.getLogger("ephyra.player")
 
 REPORT_EVERY = 10      # seconds between progress reports
 HIDE_AFTER = 3         # seconds until the controls hide while playing
 SKIP_BACK, SKIP_FORWARD = 10, 30
+FEEDBACK_MS = 800      # how long the double-tap seek bubble stays
 
 
 class PlayerPage(Adw.NavigationPage):
@@ -32,7 +34,12 @@ class PlayerPage(Adw.NavigationPage):
         self._seeking = False
         self._timers = []
         self._hide_timeout = 0
+        self._single_tap = 0
+        self._feedback_timeout = 0
+        self._streak = (None, 0)    # double-tap seeking: side, seconds so far
+        self._rotation_fullscreen = False
         self._inhibit = 0
+        self.is_video = item.get("MediaType") != "Audio"
         self.proxy = window.proxy
 
         self.picture = Gtk.Picture(content_fit=Gtk.ContentFit.CONTAIN,
@@ -46,6 +53,21 @@ class PlayerPage(Adw.NavigationPage):
         self.spinner.set_valign(Gtk.Align.CENTER)
         self.spinner.set_visible(False)
         overlay.add_overlay(self.spinner)
+        self.bubbles = {"back": self._bubble("back"),
+                        "forward": self._bubble("forward")}
+        for bubble in self.bubbles.values():
+            overlay.add_overlay(bubble)
+        self.transport = self._transport()
+        if self.is_video:
+            # Phone players put the big buttons in the middle of the video.
+            self.center = Gtk.Revealer(child=self.transport, reveal_child=True,
+                                       transition_type=Gtk.RevealerTransitionType.CROSSFADE,
+                                       halign=Gtk.Align.CENTER,
+                                       valign=Gtk.Align.CENTER)
+            overlay.add_overlay(self.center)
+        else:
+            self.center = None
+        self.overlay = overlay
         self.stack.add_named(overlay, "video")
 
         self.view = Adw.ToolbarView(content=self.stack,
@@ -63,13 +85,22 @@ class PlayerPage(Adw.NavigationPage):
                                                ["Fullscreen"])
         self.fullscreen_button.connect("clicked", lambda *_: self.toggle_fullscreen())
         header.pack_end(self.fullscreen_button)
+        self.rotate_button = Gtk.Button(icon_name="object-rotate-left-symbolic",
+                                        visible=self.is_video)
+        self.rotate_button.connect("clicked", lambda *_: self.toggle_rotation())
+        header.pack_end(self.rotate_button)
         self.view.add_top_bar(header)
         self.view.add_bottom_bar(self._controls())
-        self.set_child(self.view)
+        self.rotator = Rotator(self.view)
+        self.rotator.connect("notify::portrait", self._on_portrait)
+        self._update_rotate_button()
+        self.set_child(self.rotator)
 
+        # On the overlay, not the picture: taps on the buttons above the
+        # video stay with the buttons.
         click = Gtk.GestureClick()
         click.connect("released", self._on_tap)
-        self.picture.add_controller(click)
+        overlay.add_controller(click)
         motion = Gtk.EventControllerMotion()
         motion.connect("motion", lambda *_: self._show_controls())
         self.view.add_controller(motion)
@@ -104,7 +135,17 @@ class PlayerPage(Adw.NavigationPage):
         self.position_label.add_css_class("numeric")
         self.duration_label = Gtk.Label(label="")
         self.duration_label.add_css_class("numeric")
-        buttons = Gtk.Box(spacing=6)
+        row.set_start_widget(self.position_label)
+        if not self.is_video:
+            row.set_center_widget(self.transport)
+        row.set_end_widget(self.duration_label)
+        bar.append(row)
+        return bar
+
+    def _transport(self):
+        """Back, play/pause, forward: large round buttons over the video,
+        small flat ones in the bar for audio."""
+        buttons = Gtk.Box(spacing=24 if self.is_video else 6)
         self.play_button = self._button("media-playback-start-symbolic", "Play",
                                         self.toggle_play)
         self.play_button.add_css_class("circular")
@@ -115,11 +156,37 @@ class PlayerPage(Adw.NavigationPage):
         buttons.append(self._button("media-seek-forward-symbolic",
                                     f"Forward {SKIP_FORWARD} Seconds",
                                     lambda: self.skip(SKIP_FORWARD)))
-        row.set_start_widget(self.position_label)
-        row.set_center_widget(buttons)
-        row.set_end_widget(self.duration_label)
-        bar.append(row)
-        return bar
+        if self.is_video:
+            buttons.add_css_class("ephyra-transport")
+            for button in (buttons.get_first_child(), buttons.get_last_child()):
+                button.remove_css_class("flat")
+                button.add_css_class("circular")
+                button.add_css_class("osd")
+                button.set_valign(Gtk.Align.CENTER)
+            self.play_button.remove_css_class("flat")
+            self.play_button.add_css_class("osd")
+            self.play_button.add_css_class("ephyra-play")
+        return buttons
+
+    def _bubble(self, side):
+        """Feedback for double-tap seeking: arrow and the seconds skipped
+        so far, on the side that was tapped."""
+        icon = Gtk.Image(icon_name="media-seek-backward-symbolic" if side == "back"
+                         else "media-seek-forward-symbolic")
+        label = Gtk.Label(label="")
+        label.add_css_class("numeric")
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.add_css_class("osd")
+        box.add_css_class("ephyra-seek-bubble")
+        box.append(icon)
+        box.append(label)
+        revealer = Gtk.Revealer(child=box, can_target=False,
+                                transition_type=Gtk.RevealerTransitionType.CROSSFADE,
+                                halign=Gtk.Align.START if side == "back" else Gtk.Align.END,
+                                valign=Gtk.Align.CENTER,
+                                margin_start=24, margin_end=24)
+        revealer.label = label
+        return revealer
 
     def _button(self, icon, label, callback):
         button = Gtk.Button(icon_name=icon, tooltip_text=label)
@@ -213,6 +280,8 @@ class PlayerPage(Adw.NavigationPage):
         self.stack.set_visible_child_name("error")
         self.view.set_reveal_top_bars(True)
         self.view.set_reveal_bottom_bars(False)
+        if self.center is not None:
+            self.center.set_reveal_child(False)
 
     def _retry_transcoded(self):
         self._stop_media()
@@ -279,11 +348,12 @@ class PlayerPage(Adw.NavigationPage):
         if self.media:
             self.media.set_playing(not self.media.get_playing())
 
-    def skip(self, seconds):
+    def skip(self, seconds, show=True):
         if self.media and self.media.is_seekable():
             target = min(max(0, self.position() + seconds), self.duration() or 1e9)
             self.media.seek(int(target * 1_000_000))
-        self._show_controls()
+        if show:
+            self._show_controls()
 
     def _on_scale(self, scale, scroll, value):
         if self.media and self.media.is_seekable():
@@ -306,19 +376,107 @@ class PlayerPage(Adw.NavigationPage):
         self.fullscreen_button.update_property([Gtk.AccessibleProperty.LABEL],
                                                [label])
 
+    def toggle_rotation(self):
+        """Turn the player sideways in a portrait window, and back. Turning
+        also goes fullscreen, like a phone app switching to landscape."""
+        rotated = not self.rotator.props.rotated
+        self.rotator.props.rotated = rotated
+        if rotated and not self.window.is_fullscreen():
+            self._rotation_fullscreen = True
+            self.window.fullscreen()
+        elif not rotated and self._rotation_fullscreen:
+            self._rotation_fullscreen = False
+            if self.window.is_fullscreen():
+                self.window.unfullscreen()
+        self._update_rotate_button()
+        self._show_controls()
+
+    def _on_portrait(self, *_):
+        # The display itself turned to landscape (auto-rotate): undo ours.
+        if not self.rotator.props.portrait and self.rotator.props.rotated:
+            self.toggle_rotation()
+        self._update_rotate_button()
+
+    def _update_rotate_button(self):
+        rotated = self.rotator.props.rotated
+        label = "Rotate Back" if rotated else "Rotate to Landscape"
+        self.rotate_button.set_icon_name("object-rotate-right-symbolic" if rotated
+                                         else "object-rotate-left-symbolic")
+        self.rotate_button.set_tooltip_text(label)
+        self.rotate_button.update_property([Gtk.AccessibleProperty.LABEL], [label])
+        self.rotate_button.set_visible(self.is_video and
+                                       (rotated or self.rotator.props.portrait))
+
     def _on_tap(self, gesture, n, x, y):
-        if n == 2:
+        device = gesture.get_current_event_device()
+        touch = (device is not None and
+                 device.get_source() == Gdk.InputSource.TOUCHSCREEN)
+        self.tap(n, tap_zone(x, self.overlay.get_width()), touch)
+
+    def tap(self, n, zone, touch):
+        """A tap or click on the video, `n` counting quick repeats."""
+        if self._single_tap:
+            GLib.source_remove(self._single_tap)
+            self._single_tap = 0
+        action = tap_action(n, zone, touch)
+        if action == "wait":
+            # Might become a double tap; act once the double-tap time passed.
+            delay = Gtk.Settings.get_default().props.gtk_double_click_time
+            self._single_tap = GLib.timeout_add(delay, self._on_single_tap, touch)
+        elif action in ("back", "forward"):
+            self._double_tap_seek(action)
+        elif action == "fullscreen":
             self.toggle_fullscreen()
-            return
-        reveal = not self.view.get_reveal_bottom_bars()
-        if reveal:
-            self._show_controls()
+        elif action == "controls":
+            self._toggle_controls()
+
+    def _on_single_tap(self, touch):
+        self._single_tap = 0
+        if touch:
+            self._toggle_controls()
         else:
+            self.toggle_play()
+            self._show_controls()
+        return GLib.SOURCE_REMOVE
+
+    def _toggle_controls(self):
+        if self.view.get_reveal_bottom_bars():
             self._hide_controls()
+        else:
+            self._show_controls()
+
+    def _double_tap_seek(self, side):
+        seconds = SKIP_BACK if side == "back" else SKIP_FORWARD
+        if not (self.media and self.media.is_seekable()):
+            return
+        self.skip(-seconds if side == "back" else seconds, show=False)
+        # The bubble takes the place of the controls, as in phone players.
+        self._hide_controls()
+        last, total = self._streak
+        total = total + seconds if last == side else seconds
+        self._streak = (side, total)
+        bubble = self.bubbles[side]
+        bubble.label.set_label(f"{total} s")
+        bubble.set_reveal_child(True)
+        other = self.bubbles["forward" if side == "back" else "back"]
+        other.set_reveal_child(False)
+        if self._feedback_timeout:
+            GLib.source_remove(self._feedback_timeout)
+        self._feedback_timeout = GLib.timeout_add(FEEDBACK_MS, self._end_feedback)
+
+    def _end_feedback(self):
+        self._feedback_timeout = 0
+        self._streak = (None, 0)
+        for bubble in self.bubbles.values():
+            bubble.set_reveal_child(False)
+        return GLib.SOURCE_REMOVE
 
     def _show_controls(self):
+        visible = self.stack.get_visible_child_name() != "error"
         self.view.set_reveal_top_bars(True)
-        self.view.set_reveal_bottom_bars(self.stack.get_visible_child_name() != "error")
+        self.view.set_reveal_bottom_bars(visible)
+        if self.center is not None:
+            self.center.set_reveal_child(visible)
         self.set_cursor(None)
         if self._hide_timeout:
             GLib.source_remove(self._hide_timeout)
@@ -334,6 +492,8 @@ class PlayerPage(Adw.NavigationPage):
     def _hide_controls(self):
         self.view.set_reveal_top_bars(False)
         self.view.set_reveal_bottom_bars(False)
+        if self.center is not None:
+            self.center.set_reveal_child(False)
         self.set_cursor(Gdk.Cursor.new_from_name("none"))
 
     def _on_key(self, controller, keyval, keycode, state):
@@ -380,8 +540,11 @@ class PlayerPage(Adw.NavigationPage):
         self.stopped = True
         for timer in self._timers:
             GLib.source_remove(timer)
-        if self._hide_timeout:
-            GLib.source_remove(self._hide_timeout)
+        for source in (self._hide_timeout, self._single_tap,
+                       self._feedback_timeout):
+            if source:
+                GLib.source_remove(source)
+        self._hide_timeout = self._single_tap = self._feedback_timeout = 0
         if self._inhibit:
             self.window.get_application().uninhibit(self._inhibit)
         self.window.disconnect(self._fullscreen_handler)
@@ -389,6 +552,30 @@ class PlayerPage(Adw.NavigationPage):
             self.window.unfullscreen()
         self._stop_media()
         self.window.after_playback(self.item)
+
+
+def tap_zone(x, width):
+    """Left third, middle or right third of the video."""
+    if width > 0 and x < width / 3:
+        return "back"
+    if width > 0 and x > width * 2 / 3:
+        return "forward"
+    return "center"
+
+
+def tap_action(n, zone, touch):
+    """What the `n`-th quick tap in `zone` does, as phone players do it:
+    on touch, double tap on the sides seeks and every further quick tap
+    seeks again; one tap shows or hides the controls. With a mouse, a
+    click plays or pauses and a double click toggles fullscreen.
+    "wait" means: act only if no second tap follows."""
+    if touch:
+        if zone == "center":
+            return "controls" if n == 1 else None
+        return "wait" if n == 1 else zone
+    if n == 1:
+        return "wait"
+    return "fullscreen" if n == 2 else None
 
 
 def gst_reason(message):

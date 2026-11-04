@@ -1,6 +1,7 @@
 """Shared fixtures: a demo Jellyfin server, optionally behind mutual TLS
 with certificates made by openssl for each test session
 (phosh_toolkit.testing)."""
+import contextlib
 import os
 import sys
 from pathlib import Path
@@ -12,12 +13,35 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "phosh-toolkit" / "lib"))
 os.environ["EPHYRA_KEYRING"] = "memory"
 
-from gi.repository import Gio  # noqa: E402
+from gi.repository import Gio, GLib  # noqa: E402
 from phosh_toolkit.testing import P12_PASSWORD, make_pki, run_until  # noqa: E402,F401
 
 from ephyra.demo import DemoServer  # noqa: E402
 
 DEMO = Path(__file__).resolve().parent / "data" / "demo"
+
+
+@contextlib.contextmanager
+def owning_main_context():
+    """The main thread owns the default main context, as it does in the
+    app's Gtk.Application.run(). While nobody owns it,
+    g_main_context_invoke() from a GStreamer thread runs the callback on
+    that thread, and gtk4paintablesink aborts ("Value accessed from
+    different thread than where it was created"); holding it only inside
+    run_until() left the test code between two calls unprotected. Only
+    around media playback (2026-11-04)."""
+    context = GLib.MainContext.default()
+    context.acquire()
+    try:
+        yield context
+    finally:
+        context.release()
+
+
+@pytest.fixture
+def main_context():
+    with owning_main_context() as context:
+        yield context
 
 
 @pytest.fixture(autouse=True)

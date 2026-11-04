@@ -28,7 +28,8 @@ CLIP = Path(__file__).resolve().parent / "data" / "media" / "clip.webm"
 init()
 needed = ("playbin3", "matroskademux", "vp8dec", "vorbisdec", "souphttpsrc")
 missing = [e for e in needed if Gst.ElementFactory.find(e) is None]
-pytestmark = pytest.mark.skipif(bool(missing), reason=f"GStreamer lacks {missing}")
+pytestmark = [pytest.mark.skipif(bool(missing), reason=f"GStreamer lacks {missing}"),
+              pytest.mark.usefixtures("main_context")]
 
 
 @pytest.fixture
@@ -82,3 +83,4 @@ def test_undecodable_data_is_an_error(demo):
         media.stop()
     finally:
         proxy.stop()
+

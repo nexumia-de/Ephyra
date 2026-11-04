@@ -51,6 +51,11 @@ CI has a session bus, so the UI tests share one application (a second
 one with the same id can't register); run them under `dbus-run-session`
 to match. The tests make their own CA and certificates with `openssl` and run the
 demo server behind mutual TLS.
+Tests that play media own GLib's default context while they do, as
+the app's main loop does: the `main_context` fixture for whole tests,
+`owning_main_context()` around the player parts of the UI test. Without
+it gtk4paintablesink sometimes aborts ("Value accessed from different
+thread than where it was created"), about one run in three.
 
 Host screenshots use libadwaita 1.5: the CSS variables in `style.css`
 print parser warnings and `.dimmed` has no effect; the `@define-color`
