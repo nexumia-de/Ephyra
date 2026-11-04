@@ -3,9 +3,10 @@
 the server."""
 import logging
 
-from gi.repository import Adw, Gdk, Gio, GLib, Gtk
+from gi.repository import Adw, Gdk, GLib, Gtk
 
 from ephyra import images, playback, route, text, widgets
+from ephyra.media import Media
 
 log = logging.getLogger("ephyra.player")
 
@@ -152,14 +153,16 @@ class PlayerPage(Adw.NavigationPage):
         self.stream = stream
         url = self.proxy.url(stream.path)
         log.info("%s %s", stream.method, stream.path)
-        self.media = Gtk.MediaFile.new_for_file(Gio.File.new_for_uri(url))
+        # Not Gtk.MediaFile: GTK 4.20 reads http:// through GIO, which
+        # the Flatpak can't (ephyra/media.py).
+        self.media = Media(url, video=self.item.get("MediaType") != "Audio")
         for prop in ("timestamp", "duration", "playing", "error", "prepared",
                      "ended"):
             self.media.connect(f"notify::{prop}", self._on_media)
         if self.item.get("MediaType") == "Audio":
             self._show_cover()
         else:
-            self.picture.set_paintable(self.media)
+            self.picture.set_paintable(self.media.paintable)
         self.stack.set_visible_child_name("video")
         self.media.play()
         self._timers.append(GLib.timeout_add_seconds(REPORT_EVERY, self._report_progress))
@@ -230,7 +233,7 @@ class PlayerPage(Adw.NavigationPage):
     def _on_media(self, media, pspec):
         name = pspec.name
         if name == "error" and media.get_error():
-            message = media.get_error().message
+            message = media.get_error()
             log.warning("playback: %s", message)
             # GStreamer's message is long and technical: it goes into the
             # copyable details line, the page says what to do.
@@ -365,7 +368,7 @@ class PlayerPage(Adw.NavigationPage):
         if self.media:
             if self.started:
                 self._report("Stopped")
-            self.media.set_playing(False)
+            self.media.stop()
             self.media = None
         self.picture.set_paintable(None)
 

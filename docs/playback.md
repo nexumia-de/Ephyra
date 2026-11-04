@@ -82,15 +82,53 @@ the token must not go into URLs. So the player opens
 - HLS playlists from Jellyfin use relative URLs, so segments go through
   the proxy too.
 
-# Player (`player.py`)
+# Player (`player.py`, `media.py`)
 
-`Gtk.MediaFile` on the proxy URL, shown in a `Gtk.Picture` (audio shows
-the album cover instead). Resume: after `prepared` it seeks to the
-stored position. Reports to the server[^jf-playstate]: `/Sessions/Playing`
-when prepared, `/Progress` every 10 s and on play/pause, `/Stopped` when
-the page closes; afterwards the detail and home pages reload to show
-the new position. While playing, the app inhibits idle and suspend.
-Keys: Space, ←/→ (−10/+30 s), F or F11, Escape.
+GStreamer's `playbin3` (`ephyra/media.Media`) plays the proxy URL;
+video goes to `gtk4paintablesink` (inside `glsinkbin` when it has a GL
+context) and its paintable into a `Gtk.Picture`; audio shows the album
+cover instead. `Media` offers the part of the `GtkMediaStream` API the
+player uses (playing, prepared, ended, timestamp, duration, seekable,
+error; play, pause, seek, stop).
+
+**Why not `Gtk.MediaFile`:** in GTK 4.20 (GNOME 51) its GStreamer backend
+reads the URI through GIO (`giostreamsrc`). Inside the Flatpak GIO can't
+open `http://` (no gvfs), so nothing played, direct or converted: the
+phone logged `gtk_gst_media_file_source_setup_cb: assertion 'stream !=
+NULL' failed` and `gio_base_src: No input stream provided by subclass`,
+then "Failed to pause" (2026-11-04). `playbin3` opens the URL itself
+(`souphttpsrc`, `hlsdemux2`). Decision:
+[playbin instead of GtkMediaFile](decisions/playbin.md).
+
+Two GStreamer details found while testing: the bus delivered only the
+`NULL → READY` state change of `playbin3` with `hlsdemux2` (Python
+wrappers of messages from streaming threads don't compare equal to the
+pipeline either), so `Media` reads the pipeline state directly every
+250 ms; and pausing on `BUFFERING` messages left the pipeline stuck after
+`hlsdemux2`'s start-up buffering, so `Media` doesn't.
+
+Resume: after `prepared` it seeks to the stored position. Reports to the
+server[^jf-playstate]: `/Sessions/Playing` when prepared, `/Progress`
+every 10 s and on play/pause, `/Stopped` when the page closes;
+afterwards the detail and home pages reload to show the new position.
+While playing, the app inhibits idle and suspend. Keys: Space, ←/→
+(−10/+30 s), F or F11, Escape.
+
+**GStreamer in the phone's runtime** (`gst-inspect-1.0` inside
+`de.nexumia.Ephyra.Devel`, GNOME 51 with the `codecs-extra` 26.08
+extension, 2026-11-04): `hlsdemux`, `hlsdemux2`, `avdec_h264`,
+`avdec_aac`, `avdec_flac`, `gtk4paintablesink`, `glsinkbin`.
+
+# Verified (2026-11-04, cloud container, GStreamer 1.24)
+
+- `tests/test_media.py`: a VP8/Vorbis clip through the demo server and
+  the proxy plays, pauses, seeks and ends; undecodable data is an error.
+- Locally (not in CI, needs `hlsdemux2` and `openh264enc`): a
+  Jellyfin-shaped HLS stream (master → main playlist → `hls1/main/N.ts`,
+  H.264 + AAC, with `Content-Length` and chunked) through the proxy plays,
+  and seeking to 7 s plays to the end.
+- Not testable here: the picture through `gtk4paintablesink` (not
+  packaged for Ubuntu 24.04); checked on the phone.
 
 # Verified (2026-11-03)
 
