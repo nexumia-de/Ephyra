@@ -17,7 +17,7 @@ installs no licence files.
 
 | Module | Version | Licence | Licence files |
 |---|---|---|---|
-| `phosh-toolkit` | commit of nexumia-de/phosh-toolkit#29 (the next tag once it exists) | GPL-3.0-or-later (own code, same author) | `LICENSE` → `/app/share/licenses/<app id>/phosh-toolkit/` |
+| `phosh-toolkit` | tag `v0.2.0` (commit `9391db4`) | GPL-3.0-or-later (own code, same author) | `LICENSE` → `/app/share/licenses/<app id>/phosh-toolkit/` |
 
 Only `lib/phosh_toolkit/` is installed: the shared connection and
 playback code ([shared connection](../../phosh-toolkit/docs/shared-connection.md)).
