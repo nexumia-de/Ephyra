@@ -137,12 +137,17 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
         player.tap(3, "back", True)
         assert player.bubbles["back"].label.get_label() == "20 s"
         assert not player.center.get_reveal_child()
-        player.toggle_rotation()
-        assert player.rotator.props.rotated
-        run_until(lambda: window.is_fullscreen())
-        player.toggle_rotation()
-        assert not player.rotator.props.rotated
-        run_until(lambda: not window.is_fullscreen())
+        # Rotating asks for fullscreen; whether the window gets it is up to
+        # the compositor (CI's Xvfb has no window manager, phoc grants it).
+        requests = []
+        with pytest.MonkeyPatch.context() as fake:
+            fake.setattr(window, "fullscreen", lambda: requests.append("on"))
+            fake.setattr(window, "unfullscreen", lambda: requests.append("off"))
+            fake.setattr(window, "is_fullscreen", lambda: requests[-1:] == ["on"])
+            player.toggle_rotation()
+            assert player.rotator.props.rotated and requests == ["on"]
+            player.toggle_rotation()
+            assert not player.rotator.props.rotated and requests == ["on", "off"]
         window.nav.pop()
         run_until(lambda: player.stopped)
 
