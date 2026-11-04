@@ -19,8 +19,9 @@ cleanup:
   - /lib/pkgconfig
   - '*.a'
   - '*.la'
-# Everything else Ephyra needs is in the GNOME runtime (GTK, libadwaita,
-# libsoup 3, libsecret, GStreamer). Inventory: docs/dependencies.md.
+# Apart from the modules below, everything Ephyra needs is in the GNOME
+# runtime (GTK, libadwaita, libsoup 3, libsecret, GStreamer). Inventory:
+# docs/dependencies.md.
 modules:
   # Shared connection and playback code (phosh-toolkit
   # docs/shared-connection.md), next to Ephyra's package in site-packages.
@@ -37,6 +38,28 @@ modules:
         x-checker-data:
           type: git
           tag-pattern: ^v([\d.]+)$
+  # Japanese, Chinese and Korean text (titles, overviews, subtitles). The
+  # GNOME runtime has no CJK font and the phone may have none to share
+  # (docs/dependencies.md#fonts); fontconfig in the runtime reads
+  # /app/share/fonts.
+  - name: noto-cjk
+    buildsystem: simple
+    build-commands:
+      - install -Dm644 -t /app/share/fonts/noto-cjk NotoSansCJK-VF.otf.ttc
+      - install -Dm644 -t /app/share/licenses/$FLATPAK_ID/noto-cjk LICENSE
+    sources:
+      - type: file
+        url: https://raw.githubusercontent.com/notofonts/noto-cjk/Sans2.004/Sans/Variable/OTC/NotoSansCJK-VF.otf.ttc
+        sha256: d3d8256cdec8dbcb3552284bc6b20c734dd60c2ee9df83b5758e34807c4bac32
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/notofonts/noto-cjk/releases
+          version-query: '[.[] | select(.tag_name | startswith("Sans"))] | first | .tag_name | sub("^Sans"; "")'
+          url-query: '"https://raw.githubusercontent.com/notofonts/noto-cjk/Sans" + $version + "/Sans/Variable/OTC/NotoSansCJK-VF.otf.ttc"'
+      # Follows the font above.
+      - type: file
+        url: https://raw.githubusercontent.com/notofonts/noto-cjk/Sans2.004/LICENSE
+        sha256: 6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2
   - name: ephyra
     buildsystem: meson
     sources:

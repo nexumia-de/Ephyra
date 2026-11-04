@@ -1,6 +1,6 @@
 # Licence of every file, for "reuse lint" (https://reuse.software).
-# Licence texts are in LICENSES/; the Flatpak bundles no third-party
-# modules (docs/dependencies.md).
+# Licence texts are in LICENSES/; modules the Flatpak bundles are
+# downloaded at build time and listed in docs/dependencies.md.
 version = 1
 
 [[annotations]]
