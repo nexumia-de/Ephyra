@@ -56,6 +56,7 @@ class Stream:
         self.method = method
         self.path = path
         self.play_session_id = play_session_id
+        self.details = ""
 
     @property
     def media_source_id(self):
@@ -80,15 +81,43 @@ class Stream:
 
 
 class NoPlayableSource(Exception):
-    pass
+    def __init__(self, message, details=""):
+        super().__init__(message)
+        self.details = details
+
+
+def describe(info):
+    """One line about the server's answer and the file, shown on the
+    player's error page so the owner can report it without a terminal:
+    "mkv · hevc · eac3 · direct play no · convert not allowed"."""
+    sources = info.get("MediaSources") or []
+    parts = []
+    if sources:
+        source = sources[0]
+        if source.get("Container"):
+            parts.append(source["Container"])
+        for kind in ("Video", "Audio"):
+            stream = next((m for m in source.get("MediaStreams") or []
+                           if m.get("Type") == kind), None)
+            if stream and stream.get("Codec"):
+                parts.append(stream["Codec"])
+        parts.append("direct play " + ("yes" if source.get("SupportsDirectPlay") else "no"))
+        parts.append("convert " + ("allowed" if source.get("SupportsTranscoding") else "not allowed"))
+        parts.append("converted stream " + ("offered" if source.get("TranscodingUrl") else "none"))
+    else:
+        parts.append("no media source")
+    if info.get("ErrorCode"):
+        parts.append(f"error {info['ErrorCode']}")
+    return " · ".join(parts)
 
 
 def choose(item, info, device_id, token):
     """A Stream for `item` from the PlaybackInfo answer `info`."""
     sources = info.get("MediaSources") or []
+    details = describe(info)
     if not sources:
         error = info.get("ErrorCode") or "No playable media"
-        raise NoPlayableSource(_error_text(error))
+        raise NoPlayableSource(_error_text(error), details)
     source = sources[0]
     log.debug("PlaybackInfo: DirectPlay %s, DirectStream %s, Transcoding %s, "
               "TranscodingUrl %s, ErrorCode %s",
@@ -107,18 +136,23 @@ def choose(item, info, device_id, token):
         if source.get("LiveStreamId"):
             query["liveStreamId"] = source["LiveStreamId"]
         path = f"/{media}/{quote(item_id)}/stream?{urlencode(query)}"
-        return Stream(item_id, source, method, path, session)
+        stream = Stream(item_id, source, method, path, session)
+        stream.details = details
+        return stream
     if source.get("TranscodingUrl"):
-        return Stream(item_id, source, TRANSCODE,
-                      without_token(source["TranscodingUrl"]), session)
+        stream = Stream(item_id, source, TRANSCODE,
+                        without_token(source["TranscodingUrl"]), session)
+        stream.details = details
+        return stream
     if not source.get("SupportsTranscoding"):
         # MediaSourceManager sets this from the user's policy
         # (EnableVideoPlaybackTranscoding, docs/playback.md).
         raise NoPlayableSource(
             "Your Jellyfin user may not have videos converted. In Jellyfin's "
             "dashboard, open Users, choose your user and turn on \u201cAllow "
-            "video playback that requires transcoding\u201d.")
-    raise NoPlayableSource("The server offered no converted stream for this file")
+            "video playback that requires transcoding\u201d.", details)
+    raise NoPlayableSource("The server offered no converted stream for this file",
+                           details)
 
 
 def without_token(path):

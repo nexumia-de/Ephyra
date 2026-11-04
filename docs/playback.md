@@ -55,6 +55,13 @@ helper clears the source's `SupportsDirectPlay` before the stream
 builder checks it. `EPHYRA_DEBUG=1` logs the server's decision
 (`PlaybackInfo: DirectPlay …, Transcoding …, TranscodingUrl …`).
 
+**Error page.** "Can't Play This" says in one sentence what to do and
+shows a small, selectable details line for reports, e.g. `DirectPlay ·
+mkv · hevc · eac3 · direct play yes · convert allowed · converted stream
+none · GStreamer: No decoder available for type 'video/x-h265'.`
+(`playback.describe`, `player.gst_reason`). The same line is logged as a
+warning.
+
 # Local media proxy (`proxy.py`)
 
 GTK plays media with GStreamer (`GtkMediaFile`). GStreamer's HTTP

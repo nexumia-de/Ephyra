@@ -147,7 +147,7 @@ class PlayerPage(Adw.NavigationPage):
 
     def _on_stream(self, stream, error):
         if error is not None:
-            self._fail(str(error))
+            self._fail(str(error), getattr(error, "details", ""))
             return
         self.stream = stream
         url = self.proxy.url(stream.path)
@@ -178,16 +178,29 @@ class PlayerPage(Adw.NavigationPage):
         overlay = self.stack.get_child_by_name("video")
         overlay.add_overlay(art)
 
-    def _fail(self, message):
+    def _fail(self, message, details=""):
+        """Error page; `details` (file and server answer, see
+        playback.describe) is selectable so it can be copied into an
+        issue."""
         page = Adw.StatusPage(icon_name="dialog-error-symbolic",
-                              title="Can't Play This", description=message)
+                              title="Can\u2019t Play This", description=message)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
         if not self.force_transcode:
             button = Gtk.Button(label="Convert on the Server",
                                 halign=Gtk.Align.CENTER)
             button.add_css_class("pill")
             button.add_css_class("suggested-action")
             button.connect("clicked", lambda *_: self._retry_transcoded())
-            page.set_child(button)
+            box.append(button)
+        if details:
+            label = Gtk.Label(label=details, wrap=True, selectable=True,
+                              justify=Gtk.Justification.CENTER)
+            label.add_css_class("caption")
+            label.add_css_class("dimmed")
+            label.add_css_class("dim-label")
+            box.append(label)
+            log.warning("playback details: %s", details)
+        page.set_child(box)
         old = self.stack.get_child_by_name("error")
         if old:
             self.stack.remove(old)
@@ -219,8 +232,14 @@ class PlayerPage(Adw.NavigationPage):
         if name == "error" and media.get_error():
             message = media.get_error().message
             log.warning("playback: %s", message)
-            self._fail(f"{message}. The server can convert it to a format "
-                       "this phone plays.")
+            # GStreamer's message is long and technical: it goes into the
+            # copyable details line, the page says what to do.
+            details = f"{self.stream.method} · {self.stream.details}" \
+                if self.stream else ""
+            details = f"{details} · GStreamer: {gst_reason(message)}"
+            self._fail("This phone can\u2019t play the file as it is. The "
+                       "server can convert it to a format the phone plays.",
+                       details)
             return
         if name == "prepared" and media.is_prepared():
             if self.start > 1:
@@ -365,6 +384,19 @@ class PlayerPage(Adw.NavigationPage):
             self.window.unfullscreen()
         self._stop_media()
         self.window.after_playback(self.item)
+
+
+def gst_reason(message):
+    """The readable part of a GStreamer error ("Could not determine type
+    of stream."), without element paths and source locations."""
+    text = message.split("\n")[0]
+    if text.startswith("Error from element") and ": " in text:
+        text = text.split(": ", 1)[1]
+    for cut in (" ../", " /Gst"):
+        index = text.find(cut)
+        if index > 0:
+            text = text[:index]
+    return text.strip() or message[:120]
 
 
 def _ignore(result, error):

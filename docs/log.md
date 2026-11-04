@@ -1,6 +1,7 @@
 # Directory Update Log
 
 ## 2026-11-04
+* **Update**: [Playback](playback.md): the "Can't Play This" page shows one plain sentence and a selectable details line (container, codecs, the server's direct play / convert / converted stream answer, error code, the short GStreamer reason), so the owner can report a failing file from the phone without a terminal. The owner still saw only the error message on the phone while the browser played the file.
 * **Update**: [Connection](connection.md): addresses without a scheme get `https://`, also the local one (owner's rule); the field shows the address as used. [Playback](playback.md): on the phone a file failed with "can't convert" because the server gives no `TranscodingUrl` when the user lacks *Allow video playback that requires transcoding* (`EnableVideoPlaybackTranscoding`, read in the server source); Ephyra now names that setting. "Convert on the Server" also disables stream copy, the token is stripped from the `TranscodingUrl`, and `EPHYRA_DEBUG=1` logs the server's decision.
 
 ## 2026-11-03
