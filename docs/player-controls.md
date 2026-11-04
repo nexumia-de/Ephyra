@@ -60,6 +60,13 @@ While closed it takes no taps (`can_target` false): the closed revealer
 still covered the whole video and swallowed the taps meant for the
 buttons in the middle (owner, on the phone, 2026-11-04;
 `tests/test_ui.py` now picks the widget under each button).
+While it is open the header bar, the timeline and the buttons in the
+middle stay hidden, also when playback events or pointer movement would
+show them, and come back when it closes, as in phone players: the bars
+are drawn over the video, so they covered the bottom of the sheet
+(owner, on the phone, 2026-11-04). libadwaita 1.6's `AdwBottomSheet`
+would be the stock widget for this, but the host's libadwaita 1.5 (tests,
+screenshots) doesn't have it.
 It is a sheet in the player and not a popover, because popovers are
 separate surfaces and would not turn with the player. What happens on
 a choice: [playback](playback.md#audio-and-subtitles).

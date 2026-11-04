@@ -190,6 +190,11 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
         assert player.stream.audio_index == 1 and player.stream.subtitle_index == -1
         player.open_tracks()
         assert player.sheet.get_reveal_child()
+        # The bars are drawn over the video: they stay hidden while the
+        # sheet is open, also when playback events want to show them.
+        player._show_controls()
+        assert not player.view.get_reveal_bottom_bars()
+        assert not player.view.get_reveal_top_bars()
         player.choose_audio(2)
         assert player.media.audio_position == 1
         media = player.media
@@ -298,4 +303,104 @@ def test_playing_video_follows_the_route(app, demo, monkeypatch):
     conn.base_url = "http://127.0.0.1:9"
     conn.emit("state-changed")
     assert calls == [1]
+    window.destroy()
+
+
+def test_player_never_leaves_a_transcode_running(app, demo, monkeypatch):
+    """Every stream the player chose is stopped on the server, also when
+    the page is left before GStreamer had it prepared, on a reload and
+    after an error; a converted one also with DELETE
+    /Videos/ActiveEncodings (docs/playback.md). Seen on the owner's
+    server: four ffmpeg jobs for one movie after slow starts."""
+    from ephyra import keyring
+    from ephyra.window import Window
+    monkeypatch.setattr(router.network, "current_ssids", lambda: None)
+    store = settings.Store()
+    account = store.load()
+    account.remote_url = demo.url
+    account.server_id = demo.library["server"]["Id"]
+    account.user_id = demo.library["user"]["Id"]
+    store.save(account)
+    keyring.store(keyring.TOKEN, "demo-token")
+    conn = connection.Connection(store, watch=False)
+    conn.jellyfin.token = "demo-token"
+    conn.jellyfin.user_id = account.user_id
+    conn.base_url = conn.jellyfin.base_url = demo.url
+    window = Window(app, conn)
+    window.present()
+    movie = next(i for i in demo.library["items"] if i["Type"] == "Movie")
+    device = conn.jellyfin.device_id
+
+    def stopped():
+        return [(p["PlaySessionId"], p.get("Failed", False))
+                for path, p in demo.reports if path.endswith("/Stopped")]
+
+    with owning_main_context():
+        # A converted stream whose ffmpeg starts slowly: left while loading.
+        demo.transcode = True
+        demo.hold.clear()
+        window.play(movie, 0)
+        player = visible(window)
+        run_until(lambda: player.stream is not None)
+        session = player.stream.play_session_id
+        assert player.waiting.get_visible() and player.converting.get_visible()
+        assert not player.started
+        window.nav.pop()
+        run_until(lambda: (device, session) in demo.stopped_encodings)
+        assert stopped() == [(session, True)]
+
+        # The page closes before the server's answer arrives: that stream
+        # is stopped as soon as it comes, never played.
+        window.play(movie, 0)
+        player = visible(window)
+        assert player.stream is None
+        window.nav.pop()
+        run_until(lambda: len(demo.stopped_encodings) == 2)
+        assert player.stream is None and player.media is None
+        assert demo.stopped_encodings[1] == (device, f"demo-session-{demo.sessions}")
+
+        # Another audio track in a converted stream asks again: the old
+        # stream is stopped first, and only the new one stays.
+        demo.media_streams = [
+            {"Index": 0, "Type": "Video", "Codec": "h264"},
+            {"Index": 1, "Type": "Audio", "DisplayTitle": "English"},
+            {"Index": 2, "Type": "Audio", "DisplayTitle": "German"}]
+        window.play(movie, 0)
+        player = visible(window)
+        run_until(lambda: player.stream is not None)
+        first = player.stream.play_session_id
+        player.choose_audio(2)
+        run_until(lambda: player.stream is not None
+                  and player.stream.play_session_id != first)
+        assert (device, first) in demo.stopped_encodings
+        assert demo.playback_requests[-1]["AudioStreamIndex"] == 2
+        # The server took the choice (it needs the MediaSourceId for it).
+        assert player.stream.audio_index == 2 and player.audio_index == 2
+        second = player.stream.play_session_id
+        window.nav.pop()
+        run_until(lambda: (device, second) in demo.stopped_encodings)
+        demo.media_streams = []
+        demo.hold.set()
+
+        # The phone can't play the file: the error page already ends the
+        # stream; Convert on the Server starts exactly one new one.
+        demo.transcode = False
+        demo.reports.clear()
+        window.play(movie, 0)
+        player = visible(window)
+        run_until(lambda: player.stack.get_visible_child_name() == "error", 20)
+        run_until(lambda: len(stopped()) == 1)
+        direct = stopped()[0]
+        assert direct[1] is True and player.stream is None
+        encodings = len(demo.stopped_encodings)
+        demo.hold.clear()
+        player._retry_transcoded()
+        run_until(lambda: player.stream is not None)
+        assert player.stream.method == "Transcode"
+        retried = player.stream.play_session_id
+        assert len(demo.stopped_encodings) == encodings
+        window.nav.pop()
+        run_until(lambda: (device, retried) in demo.stopped_encodings)
+        assert [s for s, _ in stopped()] == [direct[0], retried]
+        demo.hold.set()
     window.destroy()

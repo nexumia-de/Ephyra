@@ -10,6 +10,7 @@ from phosh_toolkit.media import Media
 
 from ephyra import images, playback, subtitles, text, widgets
 from ephyra.rotator import Rotator
+from ephyra.sessions import Sessions
 
 log = logging.getLogger("ephyra.player")
 
@@ -50,6 +51,9 @@ class PlayerPage(Adw.NavigationPage):
         self.subtitle_index = None
         self.is_video = item.get("MediaType") != "Audio"
         self.proxy = window.proxy
+        # The server side of the streams: at most one per player, stopped
+        # when replaced or left (docs/playback.md).
+        self.sessions = Sessions(self.conn.jellyfin, self.conn.call)
 
         self.picture = Gtk.Picture(content_fit=Gtk.ContentFit.CONTAIN,
                                    hexpand=True, vexpand=True)
@@ -57,11 +61,7 @@ class PlayerPage(Adw.NavigationPage):
         self.stack = Gtk.Stack()
         self.stack.add_named(self._loading(), "loading")
         overlay = Gtk.Overlay(child=self.picture)
-        self.spinner = widgets.spinner()
-        self.spinner.set_halign(Gtk.Align.CENTER)
-        self.spinner.set_valign(Gtk.Align.CENTER)
-        self.spinner.set_visible(False)
-        overlay.add_overlay(self.spinner)
+        overlay.add_overlay(self._waiting())
         # Subtitles are drawn here, not by GStreamer (docs/playback.md).
         self.subtitle_label = Gtk.Label(wrap=True, justify=Gtk.Justification.CENTER,
                                         halign=Gtk.Align.CENTER, valign=Gtk.Align.END,
@@ -145,6 +145,22 @@ class PlayerPage(Adw.NavigationPage):
         page = widgets.loading_page()
         page.set_title(self.item.get("Name", ""))
         return page
+
+    def _waiting(self):
+        """Spinner while GStreamer starts the stream; for a converted one
+        also why it takes long, so nobody taps again (each new request
+        would be one more conversion on the server)."""
+        self.converting = Gtk.Label(label="Converting on the server\u2026",
+                                    wrap=True, justify=Gtk.Justification.CENTER)
+        self.converting.add_css_class("heading")
+        self.waiting = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12,
+                               halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER,
+                               can_target=False, visible=False)
+        self.waiting.add_css_class("osd")
+        self.waiting.add_css_class("ephyra-waiting")
+        self.waiting.append(widgets.spinner())
+        self.waiting.append(self.converting)
+        return self.waiting
 
     def _controls(self):
         bar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0,
@@ -302,6 +318,7 @@ class PlayerPage(Adw.NavigationPage):
     def close_tracks(self):
         self.sheet.set_can_target(False)
         self.sheet.set_reveal_child(False)
+        self._show_controls()
 
     def choose_audio(self, index):
         stream = self.stream
@@ -404,21 +421,15 @@ class PlayerPage(Adw.NavigationPage):
         return (account.quality_home if self.conn.state == route.LOCAL
                 else account.quality_away)
 
-    def prepare(self):
-        jellyfin = self.conn.jellyfin
-        item = self.item
-        bitrate = self.bitrate()
-        force = self.force_transcode
-
-        audio, subtitle = self.audio_index, self.subtitle_index
-
-        def fetch():
-            info = jellyfin.playback_info(item["Id"], bitrate, audio_index=audio,
-                                          subtitle_index=subtitle,
-                                          force_transcode=force)
-            return playback.choose(item, info, jellyfin.device_id, jellyfin.token)
-
-        self.conn.call(fetch, self._on_stream)
+    def prepare(self, replace=None):
+        """Ask the server for a stream. `replace`: what _end_stream()
+        returned for the stream being left, stopped on the server first."""
+        # The track indexes count only with their media source.
+        source = replace[0].media_source_id if replace else None
+        self.sessions.open(self._on_stream, self.item, self.bitrate(),
+                           audio=self.audio_index, subtitle=self.subtitle_index,
+                           force=self.force_transcode, replace=replace,
+                           source=source)
 
     def _on_stream(self, stream, error):
         if error is not None:
@@ -467,16 +478,18 @@ class PlayerPage(Adw.NavigationPage):
         if self.item.get("MediaType") != "Audio":
             self.picture.set_paintable(self.media.paintable)
         self.stack.set_visible_child_name("video")
+        self.converting.set_visible(stream.method == playback.TRANSCODE)
+        self.waiting.set_visible(True)
         self.media.play()
 
     def _reload(self):
         """Ask the server again (other audio in a converted stream, burned
         subtitles on or off) and go on from the current position."""
-        self.start = self.position()
-        self._stop_media()
-        self.started = False
+        if self.started:
+            self.start = self.position()
+        replace = self._end_stream()
         self.stack.set_visible_child_name("loading")
-        self.prepare()
+        self.prepare(replace)
 
     def _show_cover(self):
         art = widgets.Artwork(1)
@@ -522,12 +535,11 @@ class PlayerPage(Adw.NavigationPage):
             self.center.set_reveal_child(False)
 
     def _retry_transcoded(self):
-        self._stop_media()
+        replace = self._end_stream()
         self.force_transcode = True
-        self.started = False
         self.stack.set_visible_child_name("loading")
         self.view.set_reveal_bottom_bars(True)
-        self.prepare()
+        self.prepare(replace)
 
     # --- media state ---------------------------------------------------
 
@@ -549,11 +561,15 @@ class PlayerPage(Adw.NavigationPage):
             details = f"{self.stream.method} · {self.stream.details}" \
                 if self.stream else ""
             details = f"{details} · GStreamer: {gst_reason(message)}"
+            # Nothing plays any more: end the server's side now, not only
+            # when the page is left.
+            self._stop_stream()
             self._fail("This phone can\u2019t play the file as it is. The "
                        "server can convert it to a format the phone plays.",
                        details)
             return
         if name == "prepared" and media.is_prepared():
+            self.waiting.set_visible(False)
             if self.start > 1:
                 media.seek(int(self.start * 1_000_000))
             if not self.started:
@@ -718,11 +734,18 @@ class PlayerPage(Adw.NavigationPage):
         return GLib.SOURCE_REMOVE
 
     def _show_controls(self):
+        if self.sheet.get_reveal_child():
+            # The bars are drawn over the video, so they would cover the
+            # open track sheet: they stay hidden until it closes, as in
+            # phone players (docs/player-controls.md).
+            return
         visible = self.stack.get_visible_child_name() != "error"
         self.view.set_reveal_top_bars(True)
         self.view.set_reveal_bottom_bars(visible)
         if self.center is not None:
-            self.center.set_reveal_child(visible)
+            # Nothing to play or skip yet while the stream starts; the
+            # buttons would also cover the waiting message.
+            self.center.set_reveal_child(visible and not self.waiting.get_visible())
         self.subtitle_label.set_margin_bottom(SUBTITLE_MARGIN[visible])
         self.set_cursor(None)
         if self._hide_timeout:
@@ -776,16 +799,36 @@ class PlayerPage(Adw.NavigationPage):
             self._report("Progress")
         return GLib.SOURCE_CONTINUE
 
-    def _stop_media(self, report=True):
+    def _stop_media(self):
+        """Stop GStreamer; the server's side is _end_stream's job."""
+        self.waiting.set_visible(False)
         if self.media:
-            if self.started and report:
-                self._report("Stopped")
             for handler in self._media_handlers:
                 self.media.disconnect(handler)
             self._media_handlers = []
             self.media.stop()
             self.media = None
         self.picture.set_paintable(None)
+
+    def _end_stream(self):
+        """Leave the current stream: stop GStreamer and return what the
+        server must stop, (stream, position, failed), or None. Also before
+        `prepared`: a converted stream's ffmpeg runs on the server from
+        the first segment request, and an HLS request given up while
+        ffmpeg starts never lets the server's own kill timer start
+        (docs/playback.md)."""
+        stream, started = self.stream, self.started
+        position = self.position() if started else self.start
+        self._stop_media()
+        self.stream = None
+        self.started = False
+        self.tracks_button.set_visible(False)
+        return (stream, position, not started) if stream else None
+
+    def _stop_stream(self):
+        replace = self._end_stream()
+        if replace is not None:
+            self.sessions.stop(*replace)
 
     def _on_hidden(self, *_):
         if self.stopped:
@@ -804,7 +847,9 @@ class PlayerPage(Adw.NavigationPage):
         self.window.disconnect(self._fullscreen_handler)
         if self.window.is_fullscreen():
             self.window.unfullscreen()
-        self._stop_media()
+        # Answers still on the way are stopped when they arrive.
+        self.sessions.close()
+        self._stop_stream()
         self.window.after_playback(self.item)
 
 

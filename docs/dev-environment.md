@@ -12,9 +12,19 @@ Unreachable from the cloud environment on 2026-11-03 (proxy `403`):
 
 | Host | Needed for |
 |---|---|
-| `dl.flathub.org` | GNOME runtime and SDK for a local Flatpak build (CI builds it otherwise) |
 | `api.jellyfin.org`, `jellyfin.org`, `repo.jellyfin.org` | Jellyfin API reference and docs |
 | `developer.gnome.org`, `gnome.pages.gitlab.gnome.org` | GNOME HIG and libadwaita docs |
+
+`dl.flathub.org` was reachable on 2026-11-04: `flatpak --user install
+flathub org.gnome.Platform//51 org.freedesktop.Platform.codecs-extra//26.08-extra`
+works, but `flatpak run` does not (no usable session bus in the
+container). Run the runtime's tools with bwrap instead, the extension
+mounted where the runtime's metadata says:
+
+```sh
+R=~/.local/share/flatpak/runtime
+bwrap --ro-bind $R/org.gnome.Platform/x86_64/51/active/files /usr --ro-bind $R/org.freedesktop.Platform.codecs-extra/x86_64/26.08-extra/active/files /usr/lib/x86_64-linux-gnu/codecs-extra --symlink usr/lib /lib --symlink usr/lib64 /lib64 --symlink usr/bin /bin --symlink usr/etc /etc --proc /proc --dev /dev --tmpfs /tmp --setenv HOME /tmp --setenv LD_LIBRARY_PATH /usr/lib/x86_64-linux-gnu/codecs-extra/lib --setenv GST_PLUGIN_SYSTEM_PATH /usr/lib/x86_64-linux-gnu/codecs-extra/lib/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0 gst-inspect-1.0 avdec_truehd
+```
 
 Workaround used: the Jellyfin sources are cloned with git
 (`github.com/jellyfin/jellyfin`, `jellyfin-web`), which works.

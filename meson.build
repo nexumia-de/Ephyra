@@ -27,6 +27,7 @@ python.install_sources(
   'ephyra/player.py',
   'ephyra/preferences.py',
   'ephyra/rotator.py',
+  'ephyra/sessions.py',
   'ephyra/settings.py',
   'ephyra/setup.py',
   'ephyra/subtitles.py',

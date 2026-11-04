@@ -23,6 +23,15 @@ class DemoServer:
         self.library = json.loads((self.directory / "library.json").read_text())
         self.items = {i["Id"]: i for i in self.library["items"]}
         self.reports = []      # (path, payload) of /Sessions/Playing*
+        self.playback_requests = []   # PlaybackInfo payloads
+        self.stopped_encodings = []   # (deviceId, playSessionId) deleted
+        # A converted stream instead of direct play; `hold` keeps its
+        # playlist request waiting until set, like a server whose ffmpeg
+        # starts slowly.
+        self.transcode = False
+        self.hold = threading.Event()
+        self.hold.set()
+        self.sessions = 0
         self.requests = []     # (method, path, headers) seen
         self.media = bytes(range(256)) * 4096   # 1 MiB for range tests
         # Tracks of the media file as Jellyfin lists them (MediaStreams);
@@ -258,16 +267,54 @@ def playback_info(h, q, p, item_id):
             s["DeliveryMethod"] = "External"
             s["DeliveryUrl"] = (f"/Videos/{item_id}/{item_id}/Subtitles/"
                                 f"{s['Index']}/0/Stream.srt?ApiKey={TOKEN}")
+    for s in streams:
+        if s["Type"] == "Subtitle" and s.get("IsTextSubtitleStream") is False:
+            # Picture subtitles match no profile (StreamBuilder).
+            s["DeliveryMethod"] = "Encode"
+            s.pop("DeliveryUrl")
     p = p or {}
+    owner = h.owner
+    owner.playback_requests.append(p)
+    if p.get("MediaSourceId") != item_id:
+        # Like MediaInfoHelper: track indexes only with their source.
+        p = dict(p, AudioStreamIndex=None, SubtitleStreamIndex=None)
+    owner.sessions += 1
+    session = f"demo-session-{owner.sessions}"
     subtitle = p.get("SubtitleStreamIndex")
-    h._json({"PlaySessionId": "demo-session", "MediaSources": [{
-        "Id": item_id, "Container": "mkv", "SupportsDirectPlay": True,
-        "SupportsDirectStream": True, "SupportsTranscoding": True,
+    if subtitle is None:
+        # The server's pick from the user's settings: a default track.
+        subtitle = next((s["Index"] for s in streams if s["Type"] == "Subtitle"
+                         and s.get("IsDefault")), -1)
+    burn = any(s["Index"] == subtitle and s.get("DeliveryMethod") == "Encode"
+               for s in streams)
+    transcode = owner.transcode or burn or not p.get("EnableDirectPlay", True)
+    source = {
+        "Id": item_id, "Container": "mkv", "SupportsDirectPlay": not transcode,
+        "SupportsDirectStream": not transcode, "SupportsTranscoding": True,
         "RunTimeTicks": item.get("RunTimeTicks"), "ETag": "demo",
         "MediaStreams": streams,
         "DefaultAudioStreamIndex": p.get("AudioStreamIndex") or
         (audio[0] if audio else None),
-        "DefaultSubtitleStreamIndex": -1 if subtitle is None else subtitle}]})
+        "DefaultSubtitleStreamIndex": subtitle}
+    if transcode:
+        source["TranscodingUrl"] = (
+            f"/videos/{item_id}/master.m3u8?MediaSourceId={item_id}"
+            f"&PlaySessionId={session}&SubtitleStreamIndex={subtitle}"
+            f"&ApiKey={TOKEN}")
+    h._json({"PlaySessionId": session, "MediaSources": [source]})
+
+
+@route("GET", r"/videos/([0-9a-f]+)/master\.m3u8")
+def master(h, q, p, item_id):
+    # Not a real playlist: the tests stop before or when GStreamer fails.
+    h.owner.hold.wait(30)
+    h._bytes(b"#EXTM3U\n", "application/vnd.apple.mpegurl")
+
+
+@route("DELETE", r"/Videos/ActiveEncodings")
+def active_encodings(h, q, p):
+    h.owner.stopped_encodings.append((q.get("deviceid"), q.get("playsessionid")))
+    h._json(None, 204)
 
 
 @route("GET", r"/Videos/([0-9a-f]+)/[0-9a-f]+/Subtitles/(\d+)/0/Stream\.srt")

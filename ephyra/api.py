@@ -158,17 +158,24 @@ class Jellyfin:
 
     def playback_info(self, item_id, max_bitrate, start_ticks=0,
                       audio_index=None, subtitle_index=None,
-                      force_transcode=False):
+                      force_transcode=False, media_source_id=None):
         """audio_index, subtitle_index: Jellyfin stream indexes; None lets
         the server choose from the user's language settings, subtitle -1
-        is off. force_transcode: the phone failed to play the original,
-        let the server convert it."""
+        is off. The server uses them only together with the media source
+        they belong to (MediaInfoHelper.SetDeviceSpecificData), so
+        media_source_id defaults to the item's own, the first source.
+        force_transcode: the phone failed to play the original, let the
+        server convert it."""
+        if media_source_id is None and (audio_index is not None
+                                        or subtitle_index is not None):
+            media_source_id = item_id
         from ephyra.playback import device_profile
         return self.post(
             f"/Items/{quote(item_id)}/PlaybackInfo",
             {"UserId": self.user_id,
              "MaxStreamingBitrate": max_bitrate or 140_000_000,
              "StartTimeTicks": start_ticks,
+             "MediaSourceId": media_source_id,
              "AudioStreamIndex": audio_index,
              "SubtitleStreamIndex": subtitle_index,
              "EnableDirectPlay": not force_transcode,
@@ -185,6 +192,12 @@ class Jellyfin:
         """event: "" (started), "Progress" or "Stopped"."""
         path = "/Sessions/Playing" + (f"/{event}" if event else "")
         self.post(path, payload)
+
+    def stop_encoding(self, play_session_id):
+        """Kill the server's ffmpeg jobs of one play session
+        (HlsSegmentController.StopEncodingProcess; docs/playback.md)."""
+        self.delete("/Videos/ActiveEncodings", deviceId=self.device_id,
+                    playSessionId=play_session_id)
 
 
 def _json(body):
