@@ -96,3 +96,38 @@ def test_stop_releases_the_sink_on_the_main_thread(stream):
     thread = threading.Thread(target=holder.clear)
     thread.start()
     thread.join()
+
+
+def test_chosen_audio_and_no_embedded_subtitle():
+    # tracks.mkv: English and German audio and an embedded subtitle,
+    # which playbin3 would show by itself; Ephyra draws subtitles itself.
+    tracks = Path(__file__).resolve().parent / "data" / "media" / "tracks.mkv"
+    media = Media(tracks.as_uri(), video=False, audio_position=1)
+    media.pipeline.props.audio_sink = Gst.ElementFactory.make("fakesink", None)
+    selected = []
+
+    def on_message(bus, message):
+        if message.type == Gst.MessageType.STREAMS_SELECTED:
+            selected[:] = [message.streams_selected_get_stream(i)
+                           for i in range(message.streams_selected_get_size())]
+
+    def chosen():
+        audio = [s.get_tags().get_string("language-code")[1] for s in selected
+                 if s.get_stream_type() & Gst.StreamType.AUDIO]
+        texts = [s for s in selected if s.get_stream_type() & Gst.StreamType.TEXT]
+        return audio, len(texts)
+
+    media.pipeline.get_bus().connect("message", on_message)
+    try:
+        media.play()
+        # playbin3 first announces its own choice (English, the embedded
+        # subtitle), then Ephyra's.
+        run_until(lambda: chosen() == (["de"], 0) or media.get_error(), 15)
+        assert not media.get_error()
+        # Switching the audio track needs no restart.
+        media.select_audio(0)
+        run_until(lambda: chosen() == (["en"], 0) or media.get_error(), 15)
+        assert not media.get_error()
+        assert media.position_now() > 0
+    finally:
+        media.stop()

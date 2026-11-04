@@ -10,6 +10,8 @@ opens the proxy URL itself (souphttpsrc, hlsdemux).
 The object offers the part of the GtkMediaStream API the player uses:
 properties playing, prepared, ended, timestamp and duration (µs),
 seekable, error, and the methods play, pause, set_playing, seek, stop.
+On top: the choice of the audio track (select_audio); subtitles are
+never played by GStreamer, Ephyra draws them (docs/playback.md).
 """
 import logging
 
@@ -49,6 +51,24 @@ def video_sink():
     return sink, paintable
 
 
+def select(streams, audio_position):
+    """Stream ids to play from a stream collection (GstStream objects in
+    collection order): the first video and the `audio_position`-th audio
+    track. A subtitle file through playbin3's suburi made later selections
+    hang ("Still have streams to activate", GStreamer 1.28, 2026-11-04),
+    so subtitles stay out of the pipeline."""
+    def of(kind):
+        return [s for s in streams if s.get_stream_type() & kind]
+    videos = of(Gst.StreamType.VIDEO)
+    audios = of(Gst.StreamType.AUDIO)
+    chosen = [s.get_stream_id() for s in videos[:1]]
+    if audios:
+        position = audio_position if audio_position is not None and \
+            0 <= audio_position < len(audios) else 0
+        chosen.append(audios[position].get_stream_id())
+    return chosen
+
+
 class Media(GObject.Object):
     __gtype_name__ = "EphyraMedia"
 
@@ -60,12 +80,16 @@ class Media(GObject.Object):
     duration = GObject.Property(type=GObject.TYPE_INT64, default=0)
     error = GObject.Property(type=str, default="")
 
-    def __init__(self, uri, video=True):
+    def __init__(self, uri, video=True, audio_position=None):
+        """audio_position: which of the file's audio tracks plays, None
+        for the first."""
         super().__init__()
         init()
         self.pipeline = Gst.ElementFactory.make("playbin3", None) or \
             Gst.ElementFactory.make("playbin", None)
         self.pipeline.props.uri = uri
+        self.audio_position = audio_position
+        self._collection = None
         self._name = self.pipeline.get_name()
         self.paintable = None
         if video:
@@ -133,6 +157,12 @@ class Media(GObject.Object):
             max(0, timestamp) * Gst.USECOND)
         self.timestamp = max(0, timestamp)
 
+    def select_audio(self, position):
+        """Play the `position`-th audio track of the file, without
+        restarting."""
+        self.audio_position = position
+        self._select_streams()
+
     def stop(self):
         """Stop for good. The pipeline and the paintable are released here,
         on the main thread: gtk4paintablesink aborts the process ("Value
@@ -176,6 +206,21 @@ class Media(GObject.Object):
         elif kind in (Gst.MessageType.DURATION_CHANGED, Gst.MessageType.ASYNC_DONE,
                       Gst.MessageType.STATE_CHANGED):
             self._update_state()
+        elif kind == Gst.MessageType.STREAM_COLLECTION:
+            self._collection = message.parse_stream_collection()
+            self._select_streams()
+
+    def _select_streams(self):
+        """playbin3 picks the first audio track and the first embedded
+        subtitle by itself (tested 2026-11-04); choose instead: the first
+        video and the chosen audio track, no subtitle."""
+        if self._collection is None or self.pipeline is None:
+            return
+        streams = [self._collection.get_stream(i)
+                   for i in range(self._collection.get_size())]
+        chosen = select(streams, self.audio_position)
+        if chosen:
+            self.pipeline.send_event(Gst.Event.new_select_streams(chosen))
 
     def _query_duration(self):
         ok, value = self.pipeline.query_duration(Gst.Format.TIME)
@@ -203,6 +248,14 @@ class Media(GObject.Object):
             self._query_duration()
         if (self.ended or self.error) and self.playing:
             self.playing = False
+
+    def position_now(self):
+        """The position in µs straight from the pipeline, between the
+        250 ms updates of `timestamp` (subtitle timing)."""
+        if self.pipeline is None:
+            return self.timestamp
+        ok, value = self.pipeline.query_position(Gst.Format.TIME)
+        return value // Gst.USECOND if ok and value >= 0 else self.timestamp
 
     def _update_position(self):
         self._update_state()

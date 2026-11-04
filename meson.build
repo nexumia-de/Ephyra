@@ -34,6 +34,7 @@ python.install_sources(
   'ephyra/route.py',
   'ephyra/settings.py',
   'ephyra/setup.py',
+  'ephyra/subtitles.py',
   'ephyra/tasks.py',
   'ephyra/text.py',
   'ephyra/tls.py',

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import P12_PASSWORD, run_until
+from conftest import P12_PASSWORD, owning_main_context, run_until
 
 if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
     pytest.skip("needs a display", allow_module_level=True)
@@ -21,9 +21,8 @@ from ephyra import connection, settings, setup  # noqa: E402
 from ephyra.demo import PASSWORD  # noqa: E402
 from ephyra.http import Client  # noqa: E402
 
-pytestmark = pytest.mark.usefixtures("main_context")
-
 CLIP = Path(__file__).resolve().parent / "data" / "media" / "clip.webm"
+TRACKS = CLIP.with_name("tracks.mkv")
 
 
 @pytest.fixture(scope="module")
@@ -107,42 +106,79 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
     assert isinstance(detail, DetailPage)
     run_until(lambda: detail.stack.get_visible_child_name() == "content")
 
-    # The demo "video" is not media: the player shows its error page and
-    # offers server-side conversion.
-    window.play(detail.item, 0)
-    player = visible(window)
-    assert isinstance(player, PlayerPage)
-    run_until(lambda: player.stream is not None)
-    assert player.stream.path.startswith(f"/Videos/{movie['Id']}/stream")
-    run_until(lambda: player.stack.get_visible_child_name() == "error", 20)
-    window.nav.pop()
-    run_until(lambda: player.stopped)
-    assert isinstance(visible(window), DetailPage)
+    with owning_main_context():
+        # The demo "video" is not media: the player shows its error page and
+        # offers server-side conversion.
+        window.play(detail.item, 0)
+        player = visible(window)
+        assert isinstance(player, PlayerPage)
+        run_until(lambda: player.stream is not None)
+        assert player.stream.path.startswith(f"/Videos/{movie['Id']}/stream")
+        run_until(lambda: player.stack.get_visible_child_name() == "error", 20)
+        window.nav.pop()
+        run_until(lambda: player.stopped)
+        assert isinstance(visible(window), DetailPage)
 
-    # A real clip: double tap seeks and shows the bubble, the rotate
-    # button turns the player and goes fullscreen (docs/player-controls.md).
-    mtls_demo.media = CLIP.read_bytes()
-    window.play(detail.item, 2)
-    player = visible(window)
-    run_until(lambda: player.media is not None and player.media.is_seekable()
-              and player.position() >= 1.5, 20)
-    player.media.pause()
-    player.tap(1, "back", True)
-    player.tap(2, "back", True)
-    assert player.bubbles["back"].get_reveal_child()
-    assert player.bubbles["back"].label.get_label() == "10 s"
-    run_until(lambda: player.position() < 1)
-    player.tap(3, "back", True)
-    assert player.bubbles["back"].label.get_label() == "20 s"
-    assert not player.center.get_reveal_child()
-    player.toggle_rotation()
-    assert player.rotator.props.rotated
-    run_until(lambda: window.is_fullscreen())
-    player.toggle_rotation()
-    assert not player.rotator.props.rotated
-    run_until(lambda: not window.is_fullscreen())
-    window.nav.pop()
-    run_until(lambda: player.stopped)
+        # A real clip: double tap seeks and shows the bubble, the rotate
+        # button turns the player and goes fullscreen (docs/player-controls.md).
+        mtls_demo.media = CLIP.read_bytes()
+        window.play(detail.item, 2)
+        player = visible(window)
+        run_until(lambda: player.media is not None and player.media.is_seekable()
+                  and player.position() >= 1.5, 20)
+        player.media.pause()
+        player.tap(1, "back", True)
+        player.tap(2, "back", True)
+        assert player.bubbles["back"].get_reveal_child()
+        assert player.bubbles["back"].label.get_label() == "10 s"
+        run_until(lambda: player.position() < 1)
+        player.tap(3, "back", True)
+        assert player.bubbles["back"].label.get_label() == "20 s"
+        assert not player.center.get_reveal_child()
+        player.toggle_rotation()
+        assert player.rotator.props.rotated
+        run_until(lambda: window.is_fullscreen())
+        player.toggle_rotation()
+        assert not player.rotator.props.rotated
+        run_until(lambda: not window.is_fullscreen())
+        window.nav.pop()
+        run_until(lambda: player.stopped)
+
+        # Audio and subtitles (docs/playback.md): German audio switches inside
+        # GStreamer, the subtitle comes as SRT and Ephyra draws it.
+        mtls_demo.media = TRACKS.read_bytes()
+        mtls_demo.media_streams = [
+            {"Index": 0, "Type": "Video", "Codec": "vp8"},
+            {"Index": 1, "Type": "Audio", "Language": "eng", "DisplayTitle": "English"},
+            {"Index": 2, "Type": "Audio", "Language": "ger", "DisplayTitle": "German"},
+            {"Index": 3, "Type": "Subtitle", "Language": "eng", "DisplayTitle": "English"}]
+        mtls_demo.subtitles = b"1\n00:00:00,000 --> 00:00:30,000\n<i>Hello</i>\n\n"
+        window.play(detail.item, 0)
+        player = visible(window)
+        run_until(lambda: player.media is not None and player.media.is_prepared(), 20)
+        assert player.tracks_button.get_visible()
+        assert player.stream.audio_index == 1 and player.stream.subtitle_index == -1
+        player.open_tracks()
+        assert player.sheet.get_reveal_child()
+        player.choose_audio(2)
+        assert player.media.audio_position == 1
+        media = player.media
+        player.choose_subtitle(3)
+        # No restart: the same pipeline plays on.
+        assert player.media is media
+        run_until(lambda: player.subtitle_label.get_visible(), 20)
+        assert player.subtitle_label.get_label() == "<i>Hello</i>"
+        assert any(path.endswith("/Subtitles/3/0/Stream.srt")
+                   for _, path, _ in mtls_demo.requests)
+        assert player.stream.report(0)["SubtitleStreamIndex"] == 3
+        player.choose_subtitle(-1)
+        run_until(lambda: not player.subtitle_label.get_visible())
+        # A tap beside the sheet closes it.
+        player._on_tap(None, 1, 1, 1)
+        assert not player.sheet.get_reveal_child()
+        window.nav.pop()
+        run_until(lambda: player.stopped)
+        mtls_demo.media_streams = []
 
     dialog = PreferencesDialog(window)
     dialog.present(window)

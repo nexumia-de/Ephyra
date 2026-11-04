@@ -25,6 +25,10 @@ class DemoServer:
         self.reports = []      # (path, payload) of /Sessions/Playing*
         self.requests = []     # (method, path, headers) seen
         self.media = bytes(range(256)) * 4096   # 1 MiB for range tests
+        # Tracks of the media file as Jellyfin lists them (MediaStreams);
+        # text subtitles are offered as SRT files from `subtitles`.
+        self.media_streams = []
+        self.subtitles = b""
         server = self
 
         class Handler(_Handler):
@@ -246,10 +250,29 @@ def image(h, q, p, item_id, kind):
 @route("POST", r"/Items/([0-9a-f]+)/PlaybackInfo")
 def playback_info(h, q, p, item_id):
     item = h.owner.items[item_id]
+    streams = [dict(s) for s in h.owner.media_streams]
+    audio = [s["Index"] for s in streams if s["Type"] == "Audio"]
+    for s in streams:
+        if s["Type"] == "Subtitle":
+            # As Jellyfin's StreamBuilder answers Ephyra's SRT profile.
+            s["DeliveryMethod"] = "External"
+            s["DeliveryUrl"] = (f"/Videos/{item_id}/{item_id}/Subtitles/"
+                                f"{s['Index']}/0/Stream.srt?ApiKey={TOKEN}")
+    p = p or {}
+    subtitle = p.get("SubtitleStreamIndex")
     h._json({"PlaySessionId": "demo-session", "MediaSources": [{
         "Id": item_id, "Container": "mkv", "SupportsDirectPlay": True,
         "SupportsDirectStream": True, "SupportsTranscoding": True,
-        "RunTimeTicks": item.get("RunTimeTicks"), "ETag": "demo"}]})
+        "RunTimeTicks": item.get("RunTimeTicks"), "ETag": "demo",
+        "MediaStreams": streams,
+        "DefaultAudioStreamIndex": p.get("AudioStreamIndex") or
+        (audio[0] if audio else None),
+        "DefaultSubtitleStreamIndex": -1 if subtitle is None else subtitle}]})
+
+
+@route("GET", r"/Videos/([0-9a-f]+)/[0-9a-f]+/Subtitles/(\d+)/0/Stream\.srt")
+def subtitle(h, q, p, item_id, index):
+    h._bytes(h.owner.subtitles, "text/plain")
 
 
 @route("GET", r"/(?:Videos|Audio)/([0-9a-f]+)/stream")

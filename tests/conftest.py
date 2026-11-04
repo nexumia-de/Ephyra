@@ -1,5 +1,6 @@
 """Shared fixtures: a demo Jellyfin server, optionally behind mutual TLS
 with certificates made by openssl for each test session."""
+import contextlib
 import os
 import subprocess
 from pathlib import Path
@@ -27,21 +28,28 @@ def run_until(predicate, timeout=10):
         GLib.usleep(2000)
 
 
-@pytest.fixture
-def main_context():
-    """The main thread owns the default main context for the whole test,
-    as it does in the app's Gtk.Application.run(). While nobody owns it,
+@contextlib.contextmanager
+def owning_main_context():
+    """The main thread owns the default main context, as it does in the
+    app's Gtk.Application.run(). While nobody owns it,
     g_main_context_invoke() from a GStreamer thread runs the callback on
     that thread, and gtk4paintablesink aborts ("Value accessed from
     different thread than where it was created"); holding it only inside
     run_until() left the test code between two calls unprotected. Only
-    for tests that play media: a blocking TLS request on the main thread
-    hangs while the thread owns the context, which the app never does
-    (its requests run in tasks.py's threads)."""
+    around media playback: held through sign-in and loading the home
+    page, the UI test hung in about one run of ten (2026-11-04)."""
     context = GLib.MainContext.default()
     context.acquire()
-    yield context
-    context.release()
+    try:
+        yield context
+    finally:
+        context.release()
+
+
+@pytest.fixture
+def main_context():
+    with owning_main_context() as context:
+        yield context
 
 
 @pytest.fixture(autouse=True)

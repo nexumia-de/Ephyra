@@ -52,6 +52,12 @@ class Jellyfin:
              "Accept": "application/json"}, timeout=timeout)
         return _json(response.body)
 
+    def text(self, path):
+        """A text file from the server, e.g. a subtitle as SRT."""
+        response = self.http.request(
+            "GET", self.url(path), {"Authorization": self.authorization()})
+        return response.body.decode("utf-8-sig", errors="replace")
+
     def post(self, path, payload=None, **query):
         body = json.dumps(payload).encode() if payload is not None else b""
         response = self.http.request(
@@ -150,9 +156,12 @@ class Jellyfin:
     # --- playback (docs/playback.md) ---------------------------------------
 
     def playback_info(self, item_id, max_bitrate, start_ticks=0,
-                      audio_index=None, force_transcode=False):
-        """force_transcode: the phone failed to play the original, let the
-        server convert it."""
+                      audio_index=None, subtitle_index=None,
+                      force_transcode=False):
+        """audio_index, subtitle_index: Jellyfin stream indexes; None lets
+        the server choose from the user's language settings, subtitle -1
+        is off. force_transcode: the phone failed to play the original,
+        let the server convert it."""
         from ephyra.playback import device_profile
         return self.post(
             f"/Items/{quote(item_id)}/PlaybackInfo",
@@ -160,8 +169,7 @@ class Jellyfin:
              "MaxStreamingBitrate": max_bitrate or 140_000_000,
              "StartTimeTicks": start_ticks,
              "AudioStreamIndex": audio_index,
-             # No subtitle rendering yet: never burn them in.
-             "SubtitleStreamIndex": -1,
+             "SubtitleStreamIndex": subtitle_index,
              "EnableDirectPlay": not force_transcode,
              "EnableDirectStream": not force_transcode,
              "EnableTranscoding": True,

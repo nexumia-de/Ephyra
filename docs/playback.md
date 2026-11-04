@@ -2,7 +2,7 @@
 type: Concept
 title: Playback
 description: How Ephyra asks the server what to play (device profile, direct play or HLS transcoding), plays it with GTK's GStreamer backend through a local proxy that adds the token and the client certificate, resumes, and reports progress.
-tags: [playback, gstreamer, hls, transcoding, proxy, codecs]
+tags: [playback, gstreamer, hls, transcoding, proxy, codecs, audio, subtitles]
 resource: ../ephyra/player.py
 generated: { by: claude-code/2.1.317, at: 2026-11-03T23:30:00Z }
 sources:
@@ -15,6 +15,15 @@ sources:
   - id: jf-profile
     resource: https://github.com/jellyfin/jellyfin/blob/master/MediaBrowser.Model/Dlna/DeviceProfile.cs
     title: Jellyfin server, DeviceProfile, DirectPlayProfile, TranscodingProfile
+  - id: jf-streambuilder
+    resource: https://github.com/jellyfin/jellyfin/blob/master/MediaBrowser.Model/Dlna/StreamBuilder.cs
+    title: Jellyfin server, StreamBuilder.GetSubtitleProfile (Embed, External, Encode)
+  - id: jf-streaminfo
+    resource: https://github.com/jellyfin/jellyfin/blob/master/MediaBrowser.Model/Dlna/StreamInfo.cs
+    title: Jellyfin server, StreamInfo (subtitle DeliveryUrl, start position)
+  - id: jf-mediainfohelper
+    resource: https://github.com/jellyfin/jellyfin/blob/master/Jellyfin.Api/Helpers/MediaInfoHelper.cs
+    title: Jellyfin server, MediaInfoHelper (DefaultAudioStreamIndex, DefaultSubtitleStreamIndex, DeliveryMethod per stream)
 ---
 
 # What to play (`playback.py`)
@@ -30,8 +39,42 @@ sources:
   for home (default *Original*) and away (default *4 Mbit/s*), so a
   movie plays untouched on the home Wi-Fi and is converted on mobile
   data.
-- Subtitles are switched off (`SubtitleStreamIndex: -1`) until Ephyra
-  can show them; otherwise the server would burn them in.
+- **Tracks**: `AudioStreamIndex` and `SubtitleStreamIndex` are left out
+  at first, so the server picks them from the user's language and
+  subtitle settings; the answer names its pick in the media source's
+  `DefaultAudioStreamIndex` and `DefaultSubtitleStreamIndex`[^jf-mediainfohelper].
+  The player's **Audio and Subtitles** sheet asks again with the user's
+  choice (subtitle `-1` is off).
+- **Subtitle profile**: `{"Format": "srt", "Method": "External"}` only.
+  The server then marks every text subtitle `External` with a
+  `DeliveryUrl` `/Videos/{id}/{source}/Subtitles/{index}/0/Stream.srt`,
+  converting ASS, WebVTT and embedded ones to SRT; picture subtitles
+  (PGS, DVD, DVB) match no profile and fall back to `Encode`, burned
+  into a converted stream[^jf-streambuilder]. The `0` is the start
+  position: 0 for direct play and for HLS, which keeps timestamps[^jf-streaminfo].
+
+# Audio and subtitles
+
+- **Audio, direct play**: the file holds every track. `ephyra/media.py`
+  answers playbin3's stream collection with a `select-streams` event: the
+  first video and the chosen audio track, in file order (Jellyfin's
+  audio indexes in the same order, external audio files left out).
+  Switching sends the event again, without a restart.
+- **Audio, converted stream**: HLS carries one audio track, so the
+  player asks the server again and goes on from the same position.
+- **Text subtitles** are drawn by Ephyra: the SRT is fetched with the
+  token as a header (`Jellyfin.text`), parsed into cues
+  (`ephyra/subtitles.py`; `<b>`, `<i>`, `<u>` kept, other tags dropped)
+  and shown in a label on the `osd` background, updated every 100 ms
+  from the pipeline's position, above the controls while they show.
+  Switching or turning them off needs no restart and works the same
+  for converted streams. Decision: [subtitles in the app](decisions/subtitles-in-app.md).
+- **Picture subtitles** (`Encode`): choosing one, or leaving one, asks
+  the server again, which converts the video with the subtitle burned in.
+- playbin3 selects the first embedded subtitle by itself; the
+  `select-streams` answer never includes a text stream, so embedded
+  subtitles never show twice.
+- Progress reports carry `AudioStreamIndex` and `SubtitleStreamIndex`.
 
 `playback.choose()` takes the first media source: direct play or direct
 stream → `/Videos/{id}/stream?static=true&mediaSourceId=…&tag=…`
@@ -124,6 +167,20 @@ keys and rotating: [player controls](player-controls.md).
 extension, 2026-11-04): `hlsdemux`, `hlsdemux2`, `avdec_h264`,
 `avdec_aac`, `avdec_flac`, `gtk4paintablesink`, `glsinkbin`.
 
+# Verified (2026-11-04, owner's phone host, GStreamer 1.28.7)
+
+- Audio and subtitles, headless under phoc: `tests/test_media.py` plays
+  `tests/data/media/tracks.mkv` (English and German audio, an embedded
+  subtitle) with the German track and no subtitle, then switches to
+  English without a restart; the UI test chooses German audio and an
+  SRT subtitle from the demo server, the label shows it, "Off" hides it.
+- A subtitle file through playbin3's `suburi` was tried first: the
+  pipeline then often ignored later `select-streams` events (decodebin3
+  "Still have streams to activate"; audio switched in 2 of 8 runs
+  without a video sink, 5 of 6 with one; 12 of 12 without the file).
+- 360×720, turned, and 1000×700 screenshots of the sheet and the
+  subtitles over a colour-bar clip.
+
 # Verified (2026-11-04, cloud container, GStreamer 1.24)
 
 - `tests/test_media.py`: a VP8/Vorbis clip through the demo server and
@@ -156,3 +213,6 @@ extension, 2026-11-04): `hlsdemux`, `hlsdemux2`, `avdec_h264`,
 [^jf-mediainfo]: Jellyfin server, MediaInfoController
 [^jf-playstate]: Jellyfin server, PlaystateController
 [^jf-profile]: Jellyfin server, DeviceProfile
+[^jf-streambuilder]: Jellyfin server, StreamBuilder
+[^jf-streaminfo]: Jellyfin server, StreamInfo
+[^jf-mediainfohelper]: Jellyfin server, MediaInfoHelper
