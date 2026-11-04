@@ -30,6 +30,7 @@ python.install_sources(
   'ephyra/player.py',
   'ephyra/preferences.py',
   'ephyra/proxy.py',
+  'ephyra/rotator.py',
   'ephyra/route.py',
   'ephyra/settings.py',
   'ephyra/setup.py',

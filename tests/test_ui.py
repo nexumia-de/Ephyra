@@ -2,6 +2,7 @@
 mutual TLS: setup, sign in, home, a library, details, the player and the
 preferences. Needs a display (CI runs pytest under xvfb-run)."""
 import os
+from pathlib import Path
 
 import pytest
 
@@ -19,6 +20,10 @@ from gi.repository import Adw  # noqa: E402
 from ephyra import connection, settings, setup  # noqa: E402
 from ephyra.demo import PASSWORD  # noqa: E402
 from ephyra.http import Client  # noqa: E402
+
+pytestmark = pytest.mark.usefixtures("main_context")
+
+CLIP = Path(__file__).resolve().parent / "data" / "media" / "clip.webm"
 
 
 @pytest.fixture(scope="module")
@@ -113,6 +118,31 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
     window.nav.pop()
     run_until(lambda: player.stopped)
     assert isinstance(visible(window), DetailPage)
+
+    # A real clip: double tap seeks and shows the bubble, the rotate
+    # button turns the player and goes fullscreen (docs/player-controls.md).
+    mtls_demo.media = CLIP.read_bytes()
+    window.play(detail.item, 2)
+    player = visible(window)
+    run_until(lambda: player.media is not None and player.media.is_seekable()
+              and player.position() >= 1.5, 20)
+    player.media.pause()
+    player.tap(1, "back", True)
+    player.tap(2, "back", True)
+    assert player.bubbles["back"].get_reveal_child()
+    assert player.bubbles["back"].label.get_label() == "10 s"
+    run_until(lambda: player.position() < 1)
+    player.tap(3, "back", True)
+    assert player.bubbles["back"].label.get_label() == "20 s"
+    assert not player.center.get_reveal_child()
+    player.toggle_rotation()
+    assert player.rotator.props.rotated
+    run_until(lambda: window.is_fullscreen())
+    player.toggle_rotation()
+    assert not player.rotator.props.rotated
+    run_until(lambda: not window.is_fullscreen())
+    window.nav.pop()
+    run_until(lambda: player.stopped)
 
     dialog = PreferencesDialog(window)
     dialog.present(window)

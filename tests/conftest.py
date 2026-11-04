@@ -27,6 +27,23 @@ def run_until(predicate, timeout=10):
         GLib.usleep(2000)
 
 
+@pytest.fixture
+def main_context():
+    """The main thread owns the default main context for the whole test,
+    as it does in the app's Gtk.Application.run(). While nobody owns it,
+    g_main_context_invoke() from a GStreamer thread runs the callback on
+    that thread, and gtk4paintablesink aborts ("Value accessed from
+    different thread than where it was created"); holding it only inside
+    run_until() left the test code between two calls unprotected. Only
+    for tests that play media: a blocking TLS request on the main thread
+    hangs while the thread owns the context, which the app never does
+    (its requests run in tasks.py's threads)."""
+    context = GLib.MainContext.default()
+    context.acquire()
+    yield context
+    context.release()
+
+
 @pytest.fixture(autouse=True)
 def xdg(tmp_path, monkeypatch):
     for name in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"):

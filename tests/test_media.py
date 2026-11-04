@@ -22,7 +22,8 @@ CLIP = Path(__file__).resolve().parent / "data" / "media" / "clip.webm"
 init()
 needed = ("playbin3", "matroskademux", "vp8dec", "vorbisdec", "souphttpsrc")
 missing = [e for e in needed if Gst.ElementFactory.find(e) is None]
-pytestmark = pytest.mark.skipif(bool(missing), reason=f"GStreamer lacks {missing}")
+pytestmark = [pytest.mark.skipif(bool(missing), reason=f"GStreamer lacks {missing}"),
+              pytest.mark.usefixtures("main_context")]
 
 
 @pytest.fixture
@@ -76,3 +77,22 @@ def test_undecodable_data_is_an_error(demo):
         media.stop()
     finally:
         proxy.stop()
+
+
+def test_stop_releases_the_sink_on_the_main_thread(stream):
+    # gtk4paintablesink aborts the process when it is freed on another
+    # thread; Python's garbage collector may run on a proxy thread, so
+    # stop() must leave nothing of it behind.
+    import threading
+    media = make(stream)
+    media.play()
+    run_until(lambda: media.is_prepared() or media.get_error(), 15)
+    media.stop()
+    assert media.pipeline is None and media.paintable is None
+    media.seek(0)
+    media.set_playing(True)
+    holder = [media]
+    del media
+    thread = threading.Thread(target=holder.clear)
+    thread.start()
+    thread.join()

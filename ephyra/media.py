@@ -113,6 +113,8 @@ class Media(GObject.Object):
     def set_playing(self, playing):
         """Like GtkMediaStream, "playing" is the requested state; it turns
         false by itself at the end or on an error."""
+        if self.pipeline is None:
+            return
         if playing and self.ended:
             self.ended = False
         state = Gst.State.PLAYING if playing else Gst.State.PAUSED
@@ -124,12 +126,21 @@ class Media(GObject.Object):
 
     def seek(self, timestamp):
         """Seek to `timestamp` µs."""
+        if self.pipeline is None:
+            return
         self.pipeline.seek_simple(
             Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
             max(0, timestamp) * Gst.USECOND)
         self.timestamp = max(0, timestamp)
 
     def stop(self):
+        """Stop for good. The pipeline and the paintable are released here,
+        on the main thread: gtk4paintablesink aborts the process ("Value
+        dropped on a different thread than where it was created") when
+        Python's garbage collector frees it on a proxy thread, which
+        happened after leaving the player (2026-11-04)."""
+        if self.pipeline is None:
+            return
         if self._tick:
             GLib.source_remove(self._tick)
             self._tick = 0
@@ -139,6 +150,8 @@ class Media(GObject.Object):
             bus.remove_signal_watch()
             self._bus_handler = 0
         self.pipeline.set_state(Gst.State.NULL)
+        self.pipeline = None
+        self.paintable = None
         if self.playing:
             self.playing = False
 
