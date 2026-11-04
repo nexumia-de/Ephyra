@@ -59,6 +59,14 @@ The route is chosen again when `Gio.NetworkMonitor` reports a change
 (debounced 1.5 s), and once after any request that fails with a
 network error (`Connection.call` retries through the new route).
 
+**Switching while the app runs** (owner's report, 2026-11-04: Wi-Fi gone,
+the app stayed on the local address): since nexumia-de/phosh-toolkit#34
+NetworkManager's own signals also trigger a new route, a change during a
+running search searches again, and the window calls
+`proxy.follow(connection)`, so a playing video moves to the new address
+(GStreamer reconnects with a `Range`)
+([toolkit](../../phosh-toolkit/docs/shared-connection.md#route-route-router)).
+
 **SSID**: read from NetworkManager on the system bus
 (`ActiveConnections` → `Type == 802-11-wireless` → `SpecificObject` →
 `AccessPoint.Ssid`, falling back to the connection's `Id`)[^nm-dbus].
