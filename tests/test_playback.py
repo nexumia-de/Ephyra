@@ -62,3 +62,28 @@ def test_profile_caps_bitrate():
     assert profile["MaxStreamingBitrate"] == 4_000_000
     assert profile["TranscodingProfiles"][0]["Protocol"] == "hls"
     assert playback.device_profile(0)["MaxStreamingBitrate"] > 100_000_000
+
+
+def test_details_name_file_and_server_answer():
+    info = {"ErrorCode": "NoCompatibleStream", "MediaSources": [{
+        "Container": "mkv", "SupportsDirectPlay": False,
+        "SupportsTranscoding": False,
+        "MediaStreams": [{"Type": "Video", "Codec": "hevc"},
+                         {"Type": "Audio", "Codec": "eac3"}]}]}
+    assert playback.describe(info) == (
+        "mkv · hevc · eac3 · direct play no · convert not allowed · "
+        "converted stream none · error NoCompatibleStream")
+    with pytest.raises(playback.NoPlayableSource) as e:
+        playback.choose(ITEM, info, "d", "t")
+    assert "hevc" in e.value.details
+
+
+def test_gstreamer_reason_is_short():
+    from ephyra.player import gst_reason
+    message = ("Error from element /GstPlayBin:playbin/GstURIDecodeBin:"
+               "uridecodebin0/GstTypeFindElement:typefindelement0: Could not "
+               "determine type of stream.\nCould not determine type of stream."
+               "\n../plugins/elements/gsttypefindelement.c(1025): gst_type_find")
+    assert gst_reason(message) == "Could not determine type of stream."
+    assert gst_reason("No decoder available for type 'video/x-h265'.") == (
+        "No decoder available for type 'video/x-h265'.")
