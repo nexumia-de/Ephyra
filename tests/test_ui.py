@@ -151,3 +151,30 @@ def test_server_rejecting_the_token_shows_setup(app, demo, monkeypatch):
     window.destroy()
 
 
+
+
+def test_proxy_login_opens_the_login_page(app, demo, monkeypatch):
+    """The router's "proxy-login" signal (the proxy's session ran out)
+    opens the toolkit's login page; its cookies are loaded at start."""
+    from phosh_toolkit import proxy_login
+    from phosh_toolkit.http import origin
+
+    from ephyra import keyring
+    from ephyra.window import Window
+    monkeypatch.setattr(router.network, "current_ssids", lambda: None)
+    proxy_login.CookieJar(keyring.KEYRING).save({origin(demo.url): "s=1"})
+    store = settings.Store()
+    account = store.load()
+    account.remote_url = demo.url
+    account.server_id = demo.library["server"]["Id"]
+    account.user_id = demo.library["user"]["Id"]
+    store.save(account)
+    keyring.store(keyring.TOKEN, "t")
+    conn = connection.Connection(store, watch=False)
+    assert conn.jellyfin.http.cookies == {origin(demo.url): "s=1"}
+    calls = []
+    monkeypatch.setattr(proxy_login, "sign_in", lambda *a: calls.append(a))
+    window = Window(app, conn)
+    conn.emit("proxy-login", demo.url + "/login")
+    assert calls and calls[0][0] is window.nav and calls[0][5] == demo.url + "/login"
+    window.destroy()

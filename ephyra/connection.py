@@ -5,6 +5,7 @@ import logging
 
 from gi.repository import GObject
 from phosh_toolkit import tasks, tls
+from phosh_toolkit.proxy_login import CookieJar
 from phosh_toolkit.http import NETWORK, HttpError
 from phosh_toolkit.router import CONNECTING, OFFLINE, Router  # noqa: F401
 
@@ -31,6 +32,9 @@ class Connection(Router):
             self.jellyfin.token = keyring.lookup(keyring.TOKEN) or ""
             self.jellyfin.user_id = self.account.user_id
         self.load_certificate()
+        # A reverse proxy's own login (docs/connection.md).
+        self.proxy_cookies = CookieJar(keyring.KEYRING)
+        self.jellyfin.http.cookies = self.proxy_cookies.load()
 
     # --- account -----------------------------------------------------
 
@@ -100,6 +104,11 @@ class Connection(Router):
             raise HttpError(NETWORK, "Not connected")
         return (self.jellyfin.http, self.jellyfin.base_url + path,
                 {"Authorization": self.jellyfin.authorization()})
+
+
+def probe_through(http, url, timeout):
+    """The probe in the form phosh_toolkit.proxy_login wants."""
+    return probe_with(http)(url, timeout)
 
 
 def probe_with(http):
