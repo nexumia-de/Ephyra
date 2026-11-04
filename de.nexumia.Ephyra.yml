@@ -32,8 +32,9 @@ modules:
     sources:
       - type: git
         url: https://github.com/nexumia-de/phosh-toolkit.git
-        tag: v0.1.0
-        commit: f018688aff5ff2b04b2266f96d24ed626b219b3f
+        # nexumia-de/phosh-toolkit#29 (proxy login); replaced by the
+        # next toolkit tag once that exists.
+        commit: 66bcb75a18a399f50de72f7db2969b9d6c84b2a0
         x-checker-data:
           type: git
           tag-pattern: ^v([\d.]+)$

@@ -94,6 +94,24 @@ on plain HTTP is entered as `http://192.168.1.10:8096`.
 - The server certificate is checked against the system's CAs. Servers
   with a private CA are not supported yet (follow-up issue).
 
+# Proxy login
+
+Some reverse proxies have their own login in front of Jellyfin
+(Pangolin's resource authentication, Authelia, Authentik, …). The owner's
+proxy sets it for all resources: mutual TLS worked, then the proxy
+answered `401 Unauthorized` (2026-11-04). The toolkit detects this and
+shows the proxy's login page in a web view
+([proxy login](../../phosh-toolkit/docs/shared-connection.md#proxy-login-proxy_login)):
+
+- during setup, from the connection form;
+- later, when the proxy's session runs out: the router's `proxy-login`
+  signal opens the page from the window (`Window._on_proxy_login`), and
+  the app is not signed out of Jellyfin.
+
+The proxy's cookies are kept in the keyring (kind `proxy-cookies`) and
+loaded by `Connection`; they go only to the server's address, also for
+playback through the media proxy.
+
 # Sign-in and secrets
 
 `POST /Users/AuthenticateByName` with the `Authorization: MediaBrowser

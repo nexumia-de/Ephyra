@@ -68,6 +68,7 @@ class SetupPage(Adw.NavigationPage):
             info = self.form.answer(answers)
             url = self.form.reachable_url(answers)
             self.window.connection.jellyfin.http.certificate = http.certificate
+            self.window.connection.jellyfin.http.cookies = http.cookies
             self.window.nav.push(SignInPage(self.window, self.form, info, url))
 
         if self.form.check(done):
