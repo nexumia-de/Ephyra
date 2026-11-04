@@ -5,8 +5,10 @@ import logging
 
 from gi.repository import Adw, Gdk, GLib, Gtk
 
-from ephyra import images, playback, route, text, widgets
-from ephyra.media import Media
+from phosh_toolkit import route
+from phosh_toolkit.media import Media
+
+from ephyra import images, playback, text, widgets
 
 log = logging.getLogger("ephyra.player")
 
@@ -154,7 +156,7 @@ class PlayerPage(Adw.NavigationPage):
         url = self.proxy.url(stream.path)
         log.info("%s %s", stream.method, stream.path)
         # Not Gtk.MediaFile: GTK 4.20 reads http:// through GIO, which
-        # the Flatpak can't (ephyra/media.py).
+        # the Flatpak can't (phosh_toolkit.media).
         self.media = Media(url, video=self.item.get("MediaType") != "Audio")
         for prop in ("timestamp", "duration", "playing", "error", "prepared",
                      "ended"):

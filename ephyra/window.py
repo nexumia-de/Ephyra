@@ -1,11 +1,11 @@
 from gi.repository import Adw, GLib, Gtk
+from phosh_toolkit.proxy import MediaProxy
 
 from ephyra import NAME
 from ephyra.browse import MainPage, SearchPage
 from ephyra.detail import DetailPage
 from ephyra.images import Images
 from ephyra.player import PlayerPage
-from ephyra.proxy import MediaProxy
 from ephyra.setup import SetupPage
 
 
@@ -19,7 +19,7 @@ class Window(Adw.ApplicationWindow):
         self.app_icon = app.get_application_id()
         self.connection = connection
         self.images = Images(connection)
-        self.proxy = MediaProxy(connection.jellyfin)
+        self.proxy = MediaProxy(connection.forward)
         self.main = None
         self.nav = Adw.NavigationView()
         self.toasts = Adw.ToastOverlay(child=self.nav)

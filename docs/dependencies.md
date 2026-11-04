@@ -1,7 +1,7 @@
 ---
 type: Reference
 title: Bundled dependencies
-description: Ephyra bundles no third-party module; everything it uses comes from the GNOME runtime.
+description: Ephyra bundles only phosh-toolkit's shared package; everything else comes from the GNOME runtime.
 tags: [dependencies, licensing, flatpak]
 generated: { by: claude-code/2.1.317, at: 2026-11-03T23:30:00Z }
 ---
@@ -15,7 +15,14 @@ installs no licence files.
 
 # Modules
 
-None. The manifest has only the app module `ephyra`.
+| Module | Version | Licence | Licence files |
+|---|---|---|---|
+| `phosh-toolkit` | commit of nexumia-de/phosh-toolkit (tag `v0.1.0` once it exists) | GPL-3.0-or-later (own code, same author) | `LICENSE` → `/app/share/licenses/<app id>/phosh-toolkit/` |
+
+Only `lib/phosh_toolkit/` is installed: the shared connection and
+playback code ([shared connection](../../phosh-toolkit/docs/shared-connection.md)).
+GPL-3.0-or-later code may be combined with Ephyra's AGPL-3.0-or-later
+(section 13 of both licences).
 
 # From the runtime (not bundled)
 

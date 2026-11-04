@@ -3,7 +3,7 @@ and the account."""
 from gi.repository import Adw, GLib, Gtk
 
 from ephyra import settings
-from ephyra.setup import ConnectionForm
+from ephyra.setup import connection_form
 
 
 class PreferencesDialog(Adw.PreferencesDialog):
@@ -15,7 +15,7 @@ class PreferencesDialog(Adw.PreferencesDialog):
 
         connection_page = Adw.PreferencesPage(
             title="Connection", icon_name="network-server-symbolic")
-        self.form = ConnectionForm(window, account, toast=self.toast)
+        self.form = connection_form(window, account, toast=self.toast)
         for group in self.form.groups:
             connection_page.add(group)
         actions = Adw.PreferencesGroup()

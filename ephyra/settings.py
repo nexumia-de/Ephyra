@@ -1,12 +1,16 @@
 """The server account on disk: addresses, home networks, user and device
 ids, playback quality. Secrets (access token, certificate password) are in
 the keyring (ephyra/keyring.py), the client certificate is a private copy
-in the data directory. No GTK."""
+in the data directory (phosh_toolkit.certificate). No GTK."""
 import json
 import os
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+
+from phosh_toolkit.certificate import CertificateFile
+
+from ephyra import keyring
 
 VERSION = 1
 # Maximum streaming bitrate in bit/s; 0 plays the original file when the
@@ -104,17 +108,6 @@ class Store:
         tmp.replace(self.path)
 
 
-def save_certificate(data):
-    """Keep a private copy of the certificate file the user picked, so the
-    app does not depend on the original staying where it was."""
-    path = certificate_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "wb") as f:
-        f.write(data)
-    tmp.replace(path)
-
-
-def delete_certificate():
-    certificate_path().unlink(missing_ok=True)
+def certificates():
+    """The saved client certificate and its password in the keyring."""
+    return CertificateFile(certificate_path(), keyring.KEYRING)

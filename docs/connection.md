@@ -20,6 +20,13 @@ sources:
     title: NetworkManager D-Bus API (ActiveConnections, AccessPoint.Ssid)
 ---
 
+The route, the client certificate handling, the connection form, the
+keyring and the media proxy are phosh-toolkit's `phosh_toolkit` package,
+shared with Nauta; their general behaviour is described in
+[shared connection and playback](../../phosh-toolkit/docs/shared-connection.md).
+This file keeps what is Ephyra's: the Jellyfin probe and sign-in, the
+account file and the secrets' names.
+
 # The owner's setup
 
 One Jellyfin server, reachable
@@ -28,7 +35,7 @@ One Jellyfin server, reachable
 - **elsewhere** through a public URL behind a reverse proxy that
   requires a **client certificate** (mutual TLS).
 
-# Route (`route.py`, `connection.py`)
+# Route (`phosh_toolkit.route`, `phosh_toolkit.router`, `connection.py`)
 
 The account stores a remote address, an optional local address and a
 list of home Wi-Fi names (SSIDs). `route.candidates()` orders them:
@@ -66,7 +73,7 @@ rule, 2026-11-04); a typed `http://` or `https://` is kept, the trailing
 slash goes. The field then shows the address as used. A local Jellyfin
 on plain HTTP is entered as `http://192.168.1.10:8096`.
 
-# Mutual TLS (`tls.py`, `http.py`)
+# Mutual TLS (`phosh_toolkit.tls`, `phosh_toolkit.http`, `phosh_toolkit.certificate`)
 
 - The user picks a **PKCS #12** file (`.p12`/`.pfx`, with password) or a
   **PEM** file with certificate and unencrypted key. Ephyra keeps a
