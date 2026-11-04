@@ -34,11 +34,16 @@ The cloud image's default `python3` (3.13) has no `gi`; use
 # Run, test, screenshot
 
 ```sh
+export PYTHONPATH=$PWD/../phosh-toolkit/lib                     # shared package
 EPHYRA_DEMO=$PWD/tests/data/demo /usr/bin/python3.12 -m ephyra   # demo library
 /usr/bin/python3.12 -m ephyra                                    # real server
 dbus-run-session -- xvfb-run -a /usr/bin/python3.12 -m pytest   # all tests, as in CI
-../phosh-toolkit/scripts/screenshot.sh -e EPHYRA_DEMO=$PWD/tests/data/demo -o shot.png -- /usr/bin/python3.12 -m ephyra
+../phosh-toolkit/scripts/screenshot.sh -e EPHYRA_DEMO=$PWD/tests/data/demo -e PYTHONPATH=$PYTHONPATH -o shot.png -- /usr/bin/python3.12 -m ephyra
 ```
+
+The tests find the shared package in the sibling checkout
+`../phosh-toolkit` by themselves; CI checks out phosh-toolkit at the
+commit the manifest pins (`tests.yml`).
 
 `EPHYRA_DEBUG=1` logs the route, proxy requests and playback.
 `EPHYRA_KEYRING=memory` keeps secrets in memory (tests, screenshots).

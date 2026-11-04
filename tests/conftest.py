@@ -1,30 +1,23 @@
 """Shared fixtures: a demo Jellyfin server, optionally behind mutual TLS
-with certificates made by openssl for each test session."""
+with certificates made by openssl for each test session
+(phosh_toolkit.testing)."""
 import os
-import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
+# The shared package from the sibling checkout (CI checks it out at the
+# commit the Flatpak manifest pins).
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "phosh-toolkit" / "lib"))
 os.environ["EPHYRA_KEYRING"] = "memory"
 
-from gi.repository import Gio, GLib  # noqa: E402
+from gi.repository import Gio  # noqa: E402
+from phosh_toolkit.testing import P12_PASSWORD, make_pki, run_until  # noqa: E402,F401
 
 from ephyra.demo import DemoServer  # noqa: E402
 
 DEMO = Path(__file__).resolve().parent / "data" / "demo"
-P12_PASSWORD = "secret"
-
-
-def run_until(predicate, timeout=10):
-    """Iterate the default main context until predicate() is true."""
-    context = GLib.MainContext.default()
-    deadline = GLib.get_monotonic_time() + timeout * 1_000_000
-    while not predicate():
-        if GLib.get_monotonic_time() > deadline:
-            raise TimeoutError("main loop condition not reached")
-        context.iteration(False)
-        GLib.usleep(2000)
 
 
 @pytest.fixture(autouse=True)
@@ -32,7 +25,7 @@ def xdg(tmp_path, monkeypatch):
     for name in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"):
         monkeypatch.setenv(name, str(tmp_path / name.lower()))
     from ephyra import keyring
-    keyring._memory.clear()
+    keyring.KEYRING.forget_memory()
 
 
 @pytest.fixture
@@ -42,34 +35,11 @@ def demo():
     server.stop()
 
 
-def _openssl(*args, cwd):
-    subprocess.run(["openssl", *args], cwd=cwd, check=True,
-                   capture_output=True)
-
-
 @pytest.fixture(scope="session")
 def pki(tmp_path_factory):
     """CA, server certificate for 127.0.0.1, client certificate as PEM and
     as password-protected PKCS #12."""
-    d = tmp_path_factory.mktemp("pki")
-    _openssl("req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256",
-             "-nodes", "-keyout", "ca.key", "-out", "ca.pem", "-days", "2",
-             "-subj", "/CN=Ephyra Test CA", cwd=d)
-    (d / "san.ext").write_text("subjectAltName=IP:127.0.0.1\n")
-    (d / "client.ext").write_text("extendedKeyUsage=clientAuth\n")
-    for name, subject, ext in (("server", "/CN=127.0.0.1", "san.ext"),
-                               ("client", "/CN=Robin's phone", "client.ext")):
-        _openssl("req", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256",
-                 "-nodes", "-keyout", f"{name}.key", "-out", f"{name}.csr",
-                 "-subj", subject, cwd=d)
-        _openssl("x509", "-req", "-in", f"{name}.csr", "-CA", "ca.pem",
-                 "-CAkey", "ca.key", "-CAcreateserial", "-days", "2",
-                 "-extfile", ext, "-out", f"{name}.pem", cwd=d)
-    (d / "client-combined.pem").write_bytes(
-        (d / "client.pem").read_bytes() + (d / "client.key").read_bytes())
-    _openssl("pkcs12", "-export", "-inkey", "client.key", "-in", "client.pem",
-             "-out", "client.p12", "-passout", f"pass:{P12_PASSWORD}", cwd=d)
-    return d
+    return make_pki(tmp_path_factory.mktemp("pki"))
 
 
 @pytest.fixture

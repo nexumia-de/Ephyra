@@ -1,12 +1,13 @@
 """The Jellyfin REST API (server 10.9 or newer), blocking calls meant for
-worker threads; see ephyra/tasks.py for running them from the UI.
+worker threads; see phosh_toolkit.tasks for running them from the UI.
 No GTK."""
 import json
 import socket
 from urllib.parse import quote, urlencode
 
-from ephyra import CLIENT_NAME, VERSION
-from ephyra.http import Client, HttpError, SERVER  # noqa: F401
+from phosh_toolkit.http import Client, HttpError, SERVER  # noqa: F401
+
+from ephyra import CLIENT_NAME, USER_AGENT, VERSION
 
 TICKS_PER_SECOND = 10_000_000
 # Item fields the views need besides the defaults.
@@ -19,7 +20,7 @@ def _quote(value):
 
 class Jellyfin:
     def __init__(self, http=None, device_id="", device_name=None):
-        self.http = http or Client()
+        self.http = http or Client(USER_AGENT)
         self.device_id = device_id
         self.device_name = device_name or socket.gethostname() or "Phosh"
         self.base_url = ""      # set by Connection for the current route

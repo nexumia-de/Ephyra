@@ -1,4 +1,4 @@
-"""The playbin player (ephyra/media.py) through the demo server and the
+"""The playbin player (phosh_toolkit.media) through the demo server and the
 media proxy: what failed on the phone with Gtk.MediaFile, whose GStreamer
 backend reads http:// through GIO. Video goes to a fakesink where
 gtk4paintablesink is not installed; the data path is the same."""
@@ -12,10 +12,16 @@ gi = pytest.importorskip("gi")
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst  # noqa: E402
 
+from phosh_toolkit.media import Media, init  # noqa: E402
+from phosh_toolkit.proxy import MediaProxy  # noqa: E402
+
 from ephyra.api import Jellyfin  # noqa: E402
 from ephyra.demo import PASSWORD  # noqa: E402
-from ephyra.media import Media, init  # noqa: E402
-from ephyra.proxy import MediaProxy  # noqa: E402
+
+
+def forward(jellyfin):
+    return lambda path: (jellyfin.http, jellyfin.base_url + path,
+                         {"Authorization": jellyfin.authorization()})
 
 CLIP = Path(__file__).resolve().parent / "data" / "media" / "clip.webm"
 
@@ -31,7 +37,7 @@ def stream(demo):
     jellyfin = Jellyfin(device_id="test")
     jellyfin.base_url = demo.url
     jellyfin.authenticate("robin", PASSWORD)
-    proxy = MediaProxy(jellyfin)
+    proxy = MediaProxy(forward(jellyfin))
     yield proxy.url("/Videos/abc/stream?static=true")
     proxy.stop()
 
@@ -67,7 +73,7 @@ def test_undecodable_data_is_an_error(demo):
     jellyfin = Jellyfin(device_id="test")
     jellyfin.base_url = demo.url
     jellyfin.authenticate("robin", PASSWORD)
-    proxy = MediaProxy(jellyfin)
+    proxy = MediaProxy(forward(jellyfin))
     try:
         media = make(proxy.url("/Videos/abc/stream?static=true"))
         media.play()

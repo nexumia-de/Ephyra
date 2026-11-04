@@ -36,9 +36,13 @@ as well, with the exceptions below.
   per milestone are in [docs/roadmap.md](docs/roadmap.md).
 - Connection: local address on the owner's home Wi-Fi, remote address
   elsewhere, the remote one behind mutual TLS. Read
-  [docs/connection.md](docs/connection.md) before touching `route.py`,
-  `connection.py`, `http.py`, `tls.py` or `proxy.py`. Never put the
-  access token into a URL, a log line or a file outside the keyring.
+  [docs/connection.md](docs/connection.md) before touching
+  `connection.py` or `setup.py`. The HTTP client, route, client
+  certificates, connection form, media proxy and player are shared with
+  other apps in phosh-toolkit's `phosh_toolkit` package
+  ([shared connection](../phosh-toolkit/docs/shared-connection.md));
+  change them there. Never put the access token into a URL, a log line
+  or a file outside the keyring.
 - Playback goes through the local media proxy:
   [docs/playback.md](docs/playback.md).
 - Jellyfin API facts come from the server source

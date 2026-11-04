@@ -16,9 +16,11 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw  # noqa: E402
 
+from phosh_toolkit import connection_form, router  # noqa: E402
+from phosh_toolkit.http import Client  # noqa: E402
+
 from ephyra import connection, settings, setup  # noqa: E402
 from ephyra.demo import PASSWORD  # noqa: E402
-from ephyra.http import Client  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -43,12 +45,13 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
     from ephyra.preferences import PreferencesDialog
     from ephyra.window import Window
 
-    def trusting_client():
-        client = Client()
+    def trusting_client(user_agent):
+        client = Client(user_agent)
         client.tls_database = trust
         return client
-    monkeypatch.setattr(setup, "Client", trusting_client)
-    monkeypatch.setattr(connection.network, "current_ssids", lambda: {"Home"})
+    monkeypatch.setattr(connection_form, "Client", trusting_client)
+    monkeypatch.setattr(router.network, "current_ssids", lambda: {"Home"})
+    monkeypatch.setattr(connection_form.network, "current_ssids", lambda: {"Home"})
 
     conn = connection.Connection(watch=False)
     conn.jellyfin.http.tls_database = trust
@@ -132,7 +135,7 @@ def test_setup_sign_in_browse_and_play(app, mtls_demo, pki, trust, monkeypatch):
 def test_server_rejecting_the_token_shows_setup(app, demo, monkeypatch):
     from ephyra import keyring
     from ephyra.window import Window
-    monkeypatch.setattr(connection.network, "current_ssids", lambda: None)
+    monkeypatch.setattr(router.network, "current_ssids", lambda: None)
     store = settings.Store()
     account = store.load()
     account.remote_url = demo.url

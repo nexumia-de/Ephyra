@@ -19,10 +19,24 @@ cleanup:
   - /lib/pkgconfig
   - '*.a'
   - '*.la'
-# Everything Ephyra needs is in the GNOME runtime (GTK, libadwaita,
-# libsoup 3, libsecret, GStreamer); no module is bundled. Inventory:
-# docs/dependencies.md.
+# Everything else Ephyra needs is in the GNOME runtime (GTK, libadwaita,
+# libsoup 3, libsecret, GStreamer). Inventory: docs/dependencies.md.
 modules:
+  # Shared connection and playback code (phosh-toolkit
+  # docs/shared-connection.md), next to Ephyra's package in site-packages.
+  - name: phosh-toolkit
+    buildsystem: simple
+    build-commands:
+      - install -Dm644 -t "$(python3 -c 'import sysconfig; print(sysconfig.get_path("purelib", vars={"base":"/app"}))')/phosh_toolkit" lib/phosh_toolkit/*.py
+      - install -Dm644 -t /app/share/licenses/$FLATPAK_ID/phosh-toolkit LICENSE
+    sources:
+      - type: git
+        url: https://github.com/nexumia-de/phosh-toolkit.git
+        tag: v0.1.0
+        commit: f018688aff5ff2b04b2266f96d24ed626b219b3f
+        x-checker-data:
+          type: git
+          tag-pattern: ^v([\d.]+)$
   - name: ephyra
     buildsystem: meson
     sources:
@@ -32,3 +46,4 @@ modules:
           - build-dir
           - repo
           - tests
+          - .phosh-toolkit
