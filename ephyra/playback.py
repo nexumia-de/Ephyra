@@ -42,8 +42,42 @@ def device_profile(max_bitrate):
         ],
         "ContainerProfiles": [],
         "CodecProfiles": [],
-        "SubtitleProfiles": [],
+        # Text subtitles come as SRT files next to the stream, which
+        # Ephyra draws over the video (ephyra/subtitles.py); picture
+        # subtitles (PGS,
+        # DVD) match no profile, so the server burns them in
+        # (StreamBuilder.GetSubtitleProfile, docs/playback.md).
+        "SubtitleProfiles": [{"Format": "srt", "Method": "External"}],
     }
+
+
+def track_title(stream):
+    return (stream.get("DisplayTitle") or stream.get("Title")
+            or stream.get("Language") or stream.get("Codec") or "Unknown")
+
+
+def audio_tracks(source):
+    """(Jellyfin index, title) of the audio tracks inside the file, in
+    file order, which is also GStreamer's order. External audio files are
+    left out: they are not in the stream Ephyra plays."""
+    return [(s["Index"], track_title(s)) for s in source.get("MediaStreams") or []
+            if s.get("Type") == "Audio" and not s.get("IsExternal")
+            and "Index" in s]
+
+
+def subtitle_tracks(source):
+    """(Jellyfin index, title) of the subtitles the phone can show: as an
+    SRT file (External) or burned in by the server (Encode)."""
+    return [(s["Index"], track_title(s)) for s in source.get("MediaStreams") or []
+            if s.get("Type") == "Subtitle" and "Index" in s
+            and s.get("DeliveryMethod") in ("External", "Encode")]
+
+
+def subtitle_method(source, index):
+    for s in source.get("MediaStreams") or []:
+        if s.get("Type") == "Subtitle" and s.get("Index") == index:
+            return s.get("DeliveryMethod")
+    return None
 
 
 class Stream:
@@ -57,10 +91,32 @@ class Stream:
         self.path = path
         self.play_session_id = play_session_id
         self.details = ""
+        # The server's choice for this request (the user's language
+        # settings, or what Ephyra asked for); None or -1: none.
+        self.audio_index = source.get("DefaultAudioStreamIndex")
+        self.subtitle_index = source.get("DefaultSubtitleStreamIndex")
 
     @property
     def media_source_id(self):
         return self.source.get("Id", self.item_id)
+
+    @property
+    def audio_position(self):
+        """Position of the chosen audio track among the file's audio
+        tracks, as GStreamer counts them; None: GStreamer's default."""
+        indexes = [index for index, _ in audio_tracks(self.source)]
+        return indexes.index(self.audio_index) if self.audio_index in indexes else None
+
+    @property
+    def subtitle_path(self):
+        """Server path of the chosen subtitle as SRT, without the token,
+        or None (off, burned in, or hosted elsewhere)."""
+        for s in self.source.get("MediaStreams") or []:
+            if (s.get("Type") == "Subtitle" and s.get("Index") == self.subtitle_index
+                    and s.get("DeliveryMethod") == "External"
+                    and s.get("DeliveryUrl") and not s.get("IsExternalUrl")):
+                return without_token(s["DeliveryUrl"])
+        return None
 
     @property
     def duration(self):
@@ -75,6 +131,10 @@ class Stream:
                    "PositionTicks": int(position * 10_000_000),
                    "IsPaused": paused,
                    "CanSeek": True}
+        if self.audio_index is not None:
+            payload["AudioStreamIndex"] = self.audio_index
+        if self.subtitle_index is not None:
+            payload["SubtitleStreamIndex"] = self.subtitle_index
         if event == "":
             payload["QueueableMediaTypes"] = ["Video", "Audio"]
         return payload

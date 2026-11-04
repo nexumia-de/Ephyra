@@ -29,6 +29,7 @@ python.install_sources(
   'ephyra/rotator.py',
   'ephyra/settings.py',
   'ephyra/setup.py',
+  'ephyra/subtitles.py',
   'ephyra/text.py',
   'ephyra/widgets.py',
   'ephyra/window.py',
