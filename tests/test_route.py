@@ -5,11 +5,14 @@ from ephyra.route import LOCAL, REMOTE, AddressError, candidates, normalize
 
 
 @pytest.mark.parametrize("text, url", [
-    ("192.168.1.5:8096", "http://192.168.1.5:8096"),
+    # Without a scheme: https, also for local addresses.
+    ("192.168.1.5:8096", "https://192.168.1.5:8096"),
     ("  media.example.org/ ", "https://media.example.org"),
+    ("nas.local:8096", "https://nas.local:8096"),
+    ("[fd00::5]:8096", "https://[fd00::5]:8096"),
+    # A typed scheme is kept.
+    ("http://192.168.1.5:8096", "http://192.168.1.5:8096"),
     ("https://media.example.org/jellyfin/", "https://media.example.org/jellyfin"),
-    ("nas.local:8096", "http://nas.local:8096"),
-    ("[fd00::5]:8096", "http://[fd00::5]:8096"),
     ("HTTP://10.0.0.2:8096", "http://10.0.0.2:8096"),
 ])
 def test_normalize(text, url):

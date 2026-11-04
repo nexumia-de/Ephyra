@@ -8,7 +8,7 @@ generated: { by: claude-code/2.1.317, at: 2026-11-03T23:30:00Z }
 
 # Status
 
-Accepted (2026-11-03) by the owner, who created `nexumia-de/Ephyra`.
+Accepted (2026-11-03) by the owner, who created `nexumia-de/Ephyra` and renamed it to `nexumia-de/ephyra` on 2026-11-04.
 
 # Decision
 

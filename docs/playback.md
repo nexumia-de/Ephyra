@@ -35,10 +35,25 @@ sources:
 
 `playback.choose()` takes the first media source: direct play or direct
 stream → `/Videos/{id}/stream?static=true&mediaSourceId=…&tag=…`
-(`/Audio/…` for audio); otherwise the server's `TranscodingUrl`. If the
-phone can't decode the original, the player's error page offers
-**Convert on the Server**, which asks again with direct play and direct
-stream disabled.
+(`/Audio/…` for audio); otherwise the server's `TranscodingUrl`, with
+the `ApiKey`/`api_key` the server puts into it removed (the proxy sends
+the token as a header). If the phone can't decode the original, the
+player's error page offers **Convert on the Server**, which asks again
+with direct play and direct stream disabled and `AllowVideoStreamCopy`
+/ `AllowAudioStreamCopy` false, so the server re-encodes both streams
+instead of copying a codec the phone failed on into HLS.
+
+**Server side** (read in `Jellyfin.Api/Helpers/MediaInfoHelper.cs` and
+`Emby.Server.Implementations/Library/MediaSourceManager.cs`, 10.11):
+`SupportsTranscoding` comes from the user's policy
+`EnableVideoPlaybackTranscoding` ("Allow video playback that requires
+transcoding" in the dashboard), `SupportsDirectStream` from
+`EnablePlaybackRemuxing`. Without the first, a file the phone can't play
+has no `TranscodingUrl`; Ephyra then says which setting to turn on
+instead of a generic error. `EnableDirectPlay: false` works because the
+helper clears the source's `SupportsDirectPlay` before the stream
+builder checks it. `EPHYRA_DEBUG=1` logs the server's decision
+(`PlaybackInfo: DirectPlay …, Transcoding …, TranscodingUrl …`).
 
 # Local media proxy (`proxy.py`)
 

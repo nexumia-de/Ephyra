@@ -1,8 +1,11 @@
 """What the player asks the server for: the device profile (which formats
 GStreamer plays directly) and the stream path chosen from the server's
 PlaybackInfo answer (docs/playback.md). No GTK."""
+import logging
 import uuid
-from urllib.parse import quote, urlencode
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit
+
+log = logging.getLogger("ephyra.playback")
 
 DIRECT_PLAY = "DirectPlay"
 DIRECT_STREAM = "DirectStream"
@@ -87,6 +90,11 @@ def choose(item, info, device_id, token):
         error = info.get("ErrorCode") or "No playable media"
         raise NoPlayableSource(_error_text(error))
     source = sources[0]
+    log.debug("PlaybackInfo: DirectPlay %s, DirectStream %s, Transcoding %s, "
+              "TranscodingUrl %s, ErrorCode %s",
+              source.get("SupportsDirectPlay"), source.get("SupportsDirectStream"),
+              source.get("SupportsTranscoding"), bool(source.get("TranscodingUrl")),
+              info.get("ErrorCode"))
     session = info.get("PlaySessionId") or uuid.uuid4().hex
     media = "Audio" if item.get("MediaType") == "Audio" else "Videos"
     item_id = item["Id"]
@@ -100,12 +108,28 @@ def choose(item, info, device_id, token):
             query["liveStreamId"] = source["LiveStreamId"]
         path = f"/{media}/{quote(item_id)}/stream?{urlencode(query)}"
         return Stream(item_id, source, method, path, session)
-    if source.get("SupportsTranscoding") and source.get("TranscodingUrl"):
-        path = source["TranscodingUrl"]
-        if not path.startswith("/"):
-            path = "/" + path
-        return Stream(item_id, source, TRANSCODE, path, session)
-    raise NoPlayableSource("The server can't convert this file for the phone")
+    if source.get("TranscodingUrl"):
+        return Stream(item_id, source, TRANSCODE,
+                      without_token(source["TranscodingUrl"]), session)
+    if not source.get("SupportsTranscoding"):
+        # MediaSourceManager sets this from the user's policy
+        # (EnableVideoPlaybackTranscoding, docs/playback.md).
+        raise NoPlayableSource(
+            "Your Jellyfin user may not have videos converted. In Jellyfin's "
+            "dashboard, open Users, choose your user and turn on \u201cAllow "
+            "video playback that requires transcoding\u201d.")
+    raise NoPlayableSource("The server offered no converted stream for this file")
+
+
+def without_token(path):
+    """The server path of a TranscodingUrl without the token the server
+    puts into it (ApiKey/api_key): the proxy sends it as a header, and
+    URLs end up in GStreamer's logs."""
+    parts = urlsplit(path)
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
+             if k.lower() not in ("apikey", "api_key")]
+    path = parts.path if parts.path.startswith("/") else "/" + parts.path
+    return path + ("?" + urlencode(query) if query else "")
 
 
 def _error_text(code):
