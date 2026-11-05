@@ -89,3 +89,9 @@
   padding: 2px 8px;
   border-radius: 6px;
 }
+
+/* The next episode with its countdown, bottom right over the video. */
+.ephyra-upnext {
+  padding: 12px;
+  border-radius: 12px;
+}

@@ -135,6 +135,32 @@ class Jellyfin:
                         userId=self.user_id, seasonId=season_id,
                         fields=FIELDS)["Items"]
 
+    def next_episode(self, episode):
+        """The episode after `episode` in its series, across seasons, or
+        None. GetEpisodes with startItemId skips the list up to the given
+        episode (TvShowsController), so the answer starts with it."""
+        series = episode.get("SeriesId")
+        if not series:
+            return None
+        found = self.get(f"/Shows/{quote(series)}/Episodes", userId=self.user_id,
+                         startItemId=episode["Id"], isMissing=False, limit=2,
+                         fields=FIELDS, enableImageTypes="Primary,Backdrop,Thumb",
+                         enableUserData=True)["Items"]
+        if len(found) == 2 and found[0].get("Id") == episode["Id"]:
+            return found[1]
+        return None
+
+    def media_segments(self, item_id):
+        """{Items: [{Type, StartTicks, EndTicks}, …]} of intro, credits …
+        (MediaSegmentsController, server 10.10 or newer; older servers
+        answer 404, which counts as none)."""
+        try:
+            return self.get(f"/MediaSegments/{quote(item_id)}")
+        except HttpError as e:
+            if e.status == 404:
+                return {"Items": []}
+            raise
+
     def set_played(self, item_id, played):
         path = f"/UserPlayedItems/{quote(item_id)}"
         if played:

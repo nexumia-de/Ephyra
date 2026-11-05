@@ -404,3 +404,88 @@ def test_player_never_leaves_a_transcode_running(app, demo, monkeypatch):
         assert [s for s, _ in stopped()] == [direct[0], retried]
         demo.hold.set()
     window.destroy()
+
+
+def test_skip_intro_end_time_and_next_episode(app, demo, monkeypatch):
+    """Skip Intro seeks to the end of the intro, the end time shows next
+    to the duration, and at the credits the up-next card counts down to
+    the next episode, which replaces the player and keeps it turned
+    (docs/player-controls.md)."""
+    from ephyra import keyring
+    from ephyra.player import PlayerPage
+    from ephyra.upnext import COUNTDOWN
+    from ephyra.window import Window
+    monkeypatch.setattr(router.network, "current_ssids", lambda: None)
+    store = settings.Store()
+    account = store.load()
+    account.remote_url = demo.url
+    account.server_id = demo.library["server"]["Id"]
+    account.user_id = demo.library["user"]["Id"]
+    store.save(account)
+    keyring.store(keyring.TOKEN, "demo-token")
+    conn = connection.Connection(store, watch=False)
+    conn.jellyfin.token = "demo-token"
+    conn.jellyfin.user_id = account.user_id
+    conn.base_url = conn.jellyfin.base_url = demo.url
+    window = Window(app, conn)
+    # A phone held upright: the player can turn itself sideways.
+    window.set_default_size(360, 720)
+    window.present()
+    episode = demo.items["770b908b6aad4ce9da249cbe6fd219cd"]     # S1:E6
+    following = "290cd9a50691e695710c310a60ab9853"              # S2:E1
+    ticks = 10_000_000
+    # The clip is 30 s long: intro 0–10 s, credits 24 s to the end.
+    demo.segments[episode["Id"]] = [
+        {"Type": "Intro", "StartTicks": 0, "EndTicks": 10 * ticks},
+        {"Type": "Outro", "StartTicks": 24 * ticks, "EndTicks": 30 * ticks}]
+    demo.media = TRACKS.read_bytes()
+
+    with owning_main_context():
+        window.play(episode, 0)
+        player = visible(window)
+        skipper = player.skipper
+        run_until(lambda: player.started and skipper.next_episode is not None, 20)
+        player.media.pause()
+        assert skipper.next_episode["Id"] == following
+        assert player.next_button.get_visible()
+        run_until(lambda: skipper.skip_revealer.get_reveal_child())
+        assert skipper.button.get_label() == "Skip Intro"
+        assert player.ends_label.get_visible()
+        assert player.ends_label.get_label().startswith("Ends at ")
+        skipper.button.emit("clicked")
+        run_until(lambda: player.position() >= 9.5, 20)
+        run_until(lambda: not skipper.skip_revealer.get_reveal_child())
+        assert not skipper.card.shown
+
+        # The credits: the card instead of a Skip Credits button.
+        player.seek_to(25)
+        run_until(lambda: skipper.card.shown, 20)
+        assert not skipper.skip_revealer.get_reveal_child()
+        assert "S2:E1" in skipper.card.title.get_label()
+        skipper.card.emit("cancel")
+        assert not skipper.card.shown and not skipper.wants_next()
+        # Back before the credits and there again: offered again.
+        player.seek_to(12)
+        run_until(lambda: player.position() < 20, 20)
+        assert not skipper.cancelled
+        player.seek_to(25)
+        run_until(lambda: skipper.card.shown, 20)
+
+        player.toggle_rotation()
+        # Carried over only in a portrait window (the only place it is offered).
+        turned = player.rotator.props.portrait
+        for _ in range(COUNTDOWN):
+            skipper.tick()
+        run_until(lambda: visible(window) is not player)
+        assert player.stopped
+        nxt = visible(window)
+        assert isinstance(nxt, PlayerPage) and nxt.item["Id"] == following
+        assert nxt.rotator.props.rotated is turned
+        # Back from the next episode leads where the first one came from.
+        stack = window.nav.get_navigation_stack()
+        assert not any(stack.get_item(i) is player for i in range(stack.get_n_items()))
+        run_until(lambda: any(path.endswith("/Stopped") for path, _ in demo.reports))
+        run_until(lambda: nxt.started, 20)
+        window.nav.pop()
+        run_until(lambda: nxt.stopped)
+    window.destroy()

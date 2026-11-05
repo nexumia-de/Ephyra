@@ -38,6 +38,8 @@ class DemoServer:
         # text subtitles are offered as SRT files from `subtitles`.
         self.media_streams = []
         self.subtitles = b""
+        # MediaSegments per item id, as Jellyfin 10.10 answers them.
+        self.segments = dict(self.library.get("segments", {}))
         server = self
 
         class Handler(_Handler):
@@ -244,7 +246,25 @@ def seasons(h, q, p, series_id):
 
 @route("GET", r"/Shows/([0-9a-f]+)/Episodes")
 def episodes(h, q, p, series_id):
-    found = h.owner.children(q.get("seasonid"), types="Episode")
+    if q.get("seasonid"):
+        found = h.owner.children(q["seasonid"], types="Episode")
+    else:
+        # The whole series in order, as TvShowsController lists it.
+        found = h.owner.children(series_id, True, "Episode")
+        found.sort(key=lambda i: (i.get("ParentIndexNumber") or 0,
+                                  i.get("IndexNumber") or 0))
+    if q.get("startitemid"):
+        ids = [i["Id"] for i in found]
+        start = q["startitemid"]
+        found = found[ids.index(start):] if start in ids else []
+    if q.get("limit"):
+        found = found[:int(q["limit"])]
+    h._json({"Items": found, "TotalRecordCount": len(found)})
+
+
+@route("GET", r"/MediaSegments/([0-9a-f]+)")
+def media_segments(h, q, p, item_id):
+    found = h.owner.segments.get(item_id, [])
     h._json({"Items": found, "TotalRecordCount": len(found)})
 
 
