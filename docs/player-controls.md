@@ -1,11 +1,20 @@
 ---
 type: Concept
 title: Player controls
-description: Touch and mouse controls of the video player as phone streaming apps have them - double tap on the sides to seek, big buttons in the middle, and a button that turns the player sideways for a portrait phone.
-tags: [player, controls, gestures, touch, rotation]
+description: Touch and mouse controls of the video player as phone streaming apps have them - double tap on the sides to seek, big buttons in the middle, a button that turns the player sideways for a portrait phone, the end time, Skip Intro / Skip Credits and the next episode with a countdown.
+tags: [player, controls, gestures, touch, rotation, segments, next-episode]
 resource: ../ephyra/player.py
-generated: { by: claude-code/2.1.311, at: 2026-11-04T01:04:00Z }
+generated: { by: claude-code/2.1.318, at: 2026-11-05T08:30:00Z }
 sources:
+  - id: jf-segments
+    resource: https://github.com/jellyfin/jellyfin/blob/4fbb2a239c1527e44e0c99c44853500f6b2514e3/Jellyfin.Api/Controllers/MediaSegmentsController.cs
+    title: Jellyfin server, MediaSegmentsController (GET /MediaSegments/{itemId}, 10.10)
+  - id: jf-segment-types
+    resource: https://github.com/jellyfin/jellyfin/blob/4fbb2a239c1527e44e0c99c44853500f6b2514e3/src/Jellyfin.Database/Jellyfin.Database.Implementations/Enums/MediaSegmentType.cs
+    title: Jellyfin server, MediaSegmentType (Unknown, Commercial, Preview, Recap, Outro, Intro)
+  - id: jf-tvshows
+    resource: https://github.com/jellyfin/jellyfin/blob/4fbb2a239c1527e44e0c99c44853500f6b2514e3/Jellyfin.Api/Controllers/TvShowsController.cs
+    title: Jellyfin server, TvShowsController.GetEpisodes (startItemId, isMissing)
   - id: phosh-rotation
     resource: https://gitlab.gnome.org/World/Phosh/phosh/-/blob/main/src/rotation-manager.c
     title: Phosh, rotation manager (orientation lock, monitor transform)
@@ -45,6 +54,54 @@ Video and Jellyfin's own Android app, within libadwaita's look:
 - Touch and mouse are told apart by the event's input source
   (`Gdk.InputSource.TOUCHSCREEN`). A mouse click plays or pauses as in
   web players; touch never pauses by accident.
+
+# End time, skipping and the next episode
+
+Code: `ephyra/segments.py` (rules, no GTK), `ephyra/skipper.py` (what
+shows when), `ephyra/upnext.py` (the card), `Window.play_instead`.
+
+- **End time**: "Ends at 22:14" left of the duration in the bottom bar,
+  from now plus the remaining time, updated every second (also while
+  paused, when the end moves on). Same wording as on the detail page
+  (`text.ends_after`).
+- **Next Episode** (`media-skip-forward-symbolic`) in the header, top
+  right, for an episode that has a next one. It plays it at once.
+  The next one comes from `GET /Shows/{seriesId}/Episodes?startItemId=…
+  &isMissing=false&limit=2`: the server skips the list up to the given
+  episode, so the second item is the next one, across seasons[^jf-tvshows].
+  Not `/Shows/NextUp`, which answers the next *unwatched* episode, not the
+  one after the episode playing.
+- **Skip buttons**: Jellyfin 10.10 lists an item's segments at
+  `GET /MediaSegments/{itemId}`[^jf-segments] (filled by segment
+  providers such as the intro skipper plugin; empty without one). Types
+  `Intro`, `Recap`, `Preview`, `Commercial`, `Outro`[^jf-segment-types]
+  get a **Skip Intro / Recap / Preview / Ad / Credits** pill (accent
+  colour, bottom right) while the position is inside the segment,
+  hidden in its last second; it jumps to the segment's end. `Unknown`
+  and segments shorter than 1 s are ignored. Jellyfin 10.9 answers 404,
+  which counts as no segments.
+- **Up next** (episodes with a next one): from the start of the credits
+  (an `Outro` starting in the last quarter) or, without marked credits,
+  30 s before the end, a card in the bottom right shows "Next episode in
+  10 s", `S2:E1 · Name`, **Play Now** and **Cancel**; the episode's still
+  only from 480 px width (at 360 px it pushed the card off the screen).
+  It counts down only while playing; at 0, or when the episode ends, the
+  next one starts. Cancel hides it and the episode ends as before (the
+  player closes). Seeking back before the credits offers it again. While
+  the card shows, Skip Credits does not.
+- **Changing episodes** replaces the player page in the navigation stack
+  without an animation (`AdwNavigationView.replace`), so back leads to
+  the page the first episode was started from. The old stream is stopped
+  on the server first (as always, [playback](playback.md#stopping-streams-on-the-server-sessionspy)),
+  fullscreen stays, and a player turned sideways stays turned. The next
+  episode starts at its own resume position.
+- The skip pill and the card take taps only while shown (`can_target`),
+  like the track sheet below, and sit above the bar while the controls
+  show, near the edge otherwise.
+- Found while testing: a player created turned inside a landscape window
+  kept laying itself out and starved the main loop (idle callbacks never
+  ran). The rotation is carried over only while the window is portrait,
+  the only case the rotate button is offered in.
 
 # Audio and subtitles
 
@@ -108,8 +165,22 @@ it back. Decision: [rotate in the app](decisions/rotate-in-app.md).
 - Audio and subtitle sheet at 360×720, turned (two columns) and
   1000×700; the subtitles stay above the controls while they show.
 
+- 2026-11-05, cloud container (GTK 4.14, libadwaita 1.5, GStreamer
+  1.24): `tests/test_ui.py::test_skip_intro_end_time_and_next_episode`
+  plays a 30 s clip as a demo episode with an intro and credits: Skip
+  Intro jumps past the intro, the end time shows, the card appears at the
+  credits, Cancel and seeking back work, the countdown starts S2:E1 in
+  place of the player and keeps it turned. `tests/test_segments.py`
+  covers the rules and the API calls against the demo server (next
+  episode across seasons, none after the last, 404 on old servers).
+  Broadway screenshots at 360×720 and 1000×700 of the skip pill and the
+  card (the header bar does not show in Broadway screenshots of the
+  player, also on `main`).
+
 # Open
 
+- On the phone: the countdown and the switch to the next episode with a
+  real server and the intro skipper plugin's segments.
 - Real touch on the phone: the 400 ms wait before a side tap shows the
   controls, and whether phoc's touch events reach the gesture as
   `TOUCHSCREEN`.

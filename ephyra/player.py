@@ -2,28 +2,33 @@
 touch controls over the video (docs/player-controls.md), progress
 reported to the server."""
 import logging
+from datetime import datetime
 
 from gi.repository import Adw, Gdk, GLib, Gtk
 
 from phosh_toolkit import route
 from phosh_toolkit.media import Media
 
-from ephyra import images, playback, subtitles, text, widgets
+from ephyra import images, playback, text, widgets
 from ephyra.rotator import Rotator
 from ephyra.sessions import Sessions
+from ephyra.skipper import Skipper
+from ephyra.subtitle_view import SubtitleView
+from ephyra.taps import SeekBubbles, tap_action, tap_zone  # noqa: F401 (tests)
+from ephyra.track_sheet import TrackSheet
 
 log = logging.getLogger("ephyra.player")
 
 REPORT_EVERY = 10      # seconds between progress reports
 HIDE_AFTER = 3         # seconds until the controls hide while playing
 SKIP_BACK, SKIP_FORWARD = 10, 30
-FEEDBACK_MS = 800      # how long the double-tap seek bubble stays
-SUBTITLE_EVERY = 100   # ms between subtitle updates
-SUBTITLE_MARGIN = {False: 24, True: 104}   # below the video, above the controls
 
 
 class PlayerPage(Adw.NavigationPage):
-    def __init__(self, window, item, start=0, force_transcode=False):
+    def __init__(self, window, item, start=0, force_transcode=False,
+                 rotated=False, rotation_fullscreen=False):
+        """`rotated`, `rotation_fullscreen`: carried over from the
+        episode before, so the next one plays turned as it was."""
         super().__init__(title=item.get("Name", ""), tag="player")
         self.window = window
         self.conn = window.connection
@@ -38,13 +43,10 @@ class PlayerPage(Adw.NavigationPage):
         self._timers = []
         self._hide_timeout = 0
         self._single_tap = 0
-        self._feedback_timeout = 0
-        self._streak = (None, 0)    # double-tap seeking: side, seconds so far
-        self._rotation_fullscreen = False
+        self._rotation_fullscreen = rotation_fullscreen
+        self._keep_window = False   # handing over to the next episode
         self._inhibit = 0
         self._media_handlers = []
-        self.subtitle_track = None
-        self._subtitle_timer = 0
         # Track choice: None lets the server pick from the user's
         # language settings, subtitle -1 is off.
         self.audio_index = None
@@ -63,17 +65,15 @@ class PlayerPage(Adw.NavigationPage):
         overlay = Gtk.Overlay(child=self.picture)
         overlay.add_overlay(self._waiting())
         # Subtitles are drawn here, not by GStreamer (docs/playback.md).
-        self.subtitle_label = Gtk.Label(wrap=True, justify=Gtk.Justification.CENTER,
-                                        halign=Gtk.Align.CENTER, valign=Gtk.Align.END,
-                                        margin_start=12, margin_end=12,
-                                        margin_bottom=SUBTITLE_MARGIN[False],
-                                        can_target=False, visible=False)
-        for css in ("osd", "title-4", "ephyra-subtitle"):
-            self.subtitle_label.add_css_class(css)
+        self.subtitle_view = SubtitleView(
+            self.conn.call, self.conn.jellyfin,
+            lambda: self.media.position_now() if self.media else None,
+            window.toast)
+        self.subtitle_label = self.subtitle_view.label
         overlay.add_overlay(self.subtitle_label)
-        self.bubbles = {"back": self._bubble("back"),
-                        "forward": self._bubble("forward")}
-        for bubble in self.bubbles.values():
+        self.seek_bubbles = SeekBubbles()
+        self.bubbles = self.seek_bubbles.bubbles
+        for bubble in self.seek_bubbles.overlays:
             overlay.add_overlay(bubble)
         self.transport = self._transport()
         if self.is_video:
@@ -85,7 +85,12 @@ class PlayerPage(Adw.NavigationPage):
             overlay.add_overlay(self.center)
         else:
             self.center = None
-        self.sheet = self._track_sheet()
+        # Skip Intro / Credits and the next episode, bottom right.
+        self.skipper = Skipper(window.images, self.seek_to, self.play_next,
+                               lambda: self.overlay.get_width())
+        for widget in self.skipper.overlays:
+            overlay.add_overlay(widget)
+        self.sheet = TrackSheet(self.close_tracks)
         overlay.add_overlay(self.sheet)
         self.overlay = overlay
         self.stack.add_named(overlay, "video")
@@ -105,6 +110,12 @@ class PlayerPage(Adw.NavigationPage):
                                                ["Fullscreen"])
         self.fullscreen_button.connect("clicked", lambda *_: self.toggle_fullscreen())
         header.pack_end(self.fullscreen_button)
+        self.next_button = Gtk.Button(icon_name="media-skip-forward-symbolic",
+                                      tooltip_text="Next Episode", visible=False)
+        self.next_button.update_property([Gtk.AccessibleProperty.LABEL],
+                                         ["Next Episode"])
+        self.next_button.connect("clicked", lambda *_: self.play_next())
+        header.pack_end(self.next_button)
         self.rotate_button = Gtk.Button(icon_name="object-rotate-left-symbolic",
                                         visible=self.is_video)
         self.rotate_button.connect("clicked", lambda *_: self.toggle_rotation())
@@ -119,6 +130,7 @@ class PlayerPage(Adw.NavigationPage):
         self.view.add_top_bar(header)
         self.view.add_bottom_bar(self._controls())
         self.rotator = Rotator(self.view)
+        self.rotator.props.rotated = rotated
         self.rotator.connect("notify::portrait", self._on_portrait)
         self._update_rotate_button()
         self.set_child(self.rotator)
@@ -178,10 +190,18 @@ class PlayerPage(Adw.NavigationPage):
         self.position_label.add_css_class("numeric")
         self.duration_label = Gtk.Label(label="")
         self.duration_label.add_css_class("numeric")
+        # "Ends at 22:14", next to the duration, as Jellyfin's player has it.
+        self.ends_label = Gtk.Label(label="", visible=False)
+        self.ends_label.add_css_class("numeric")
+        self.ends_label.add_css_class("dimmed")
+        self.ends_label.add_css_class("dim-label")
+        end = Gtk.Box(spacing=12)
+        end.append(self.ends_label)
+        end.append(self.duration_label)
         row.set_start_widget(self.position_label)
         if not self.is_video:
             row.set_center_widget(self.transport)
-        row.set_end_widget(self.duration_label)
+        row.set_end_widget(end)
         bar.append(row)
         return bar
 
@@ -211,77 +231,6 @@ class PlayerPage(Adw.NavigationPage):
             self.play_button.add_css_class("ephyra-play")
         return buttons
 
-    def _bubble(self, side):
-        """Feedback for double-tap seeking: arrow and the seconds skipped
-        so far, on the side that was tapped."""
-        icon = Gtk.Image(icon_name="media-seek-backward-symbolic" if side == "back"
-                         else "media-seek-forward-symbolic")
-        label = Gtk.Label(label="")
-        label.add_css_class("numeric")
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        box.add_css_class("osd")
-        box.add_css_class("ephyra-seek-bubble")
-        box.append(icon)
-        box.append(label)
-        revealer = Gtk.Revealer(child=box, can_target=False,
-                                transition_type=Gtk.RevealerTransitionType.CROSSFADE,
-                                halign=Gtk.Align.START if side == "back" else Gtk.Align.END,
-                                valign=Gtk.Align.CENTER,
-                                margin_start=24, margin_end=24)
-        revealer.label = label
-        return revealer
-
-    def _track_sheet(self):
-        """Audio and subtitle choice as a sheet inside the player, not a
-        popover: popovers are own surfaces and would not turn with the
-        rotated player (docs/player-controls.md)."""
-        self.track_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
-        scrolled = Gtk.ScrolledWindow(child=self.track_list,
-                                      hscrollbar_policy=Gtk.PolicyType.NEVER,
-                                      propagate_natural_height=True)
-        title = Gtk.Label(label="Audio and Subtitles", hexpand=True, xalign=0)
-        title.add_css_class("heading")
-        close = Gtk.Button(icon_name="window-close-symbolic", tooltip_text="Close")
-        close.update_property([Gtk.AccessibleProperty.LABEL], ["Close"])
-        close.add_css_class("flat")
-        close.add_css_class("circular")
-        close.connect("clicked", lambda *_: self.close_tracks())
-        top = Gtk.Box(spacing=6)
-        top.append(title)
-        top.append(close)
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        box.add_css_class("ephyra-sheet")
-        box.append(top)
-        box.append(scrolled)
-        box.set_valign(Gtk.Align.END)
-        clamp = Adw.Clamp(child=box, maximum_size=760)
-        # Filling the overlay, so a long list scrolls instead of running
-        # past the edge (the overlay gives an END child its natural height).
-        self.sheet_box = box
-        # can_target only while open: closed, the revealer still covers the
-        # whole video and took the taps meant for the buttons in the middle
-        # (found on the phone, 2026-11-04).
-        return Gtk.Revealer(child=clamp, reveal_child=False, valign=Gtk.Align.FILL,
-                            transition_type=Gtk.RevealerTransitionType.SLIDE_UP,
-                            margin_top=48, can_target=False)
-
-    def _track_group(self, title, tracks, current, callback):
-        group = Adw.PreferencesGroup(title=title)
-        first = None
-        for index, label in tracks:
-            check = Gtk.CheckButton(active=index == current, valign=Gtk.Align.CENTER)
-            if first is None:
-                first = check
-            else:
-                check.set_group(first)
-            check.connect("toggled", lambda b, i=index:
-                          b.get_active() and callback(i))
-            row = Adw.ActionRow(title=label, activatable_widget=check)
-            row.set_title_lines(2)
-            row.add_prefix(check)
-            group.add(row)
-        return group
-
     def _tracks(self):
         if not self.stream or not self.is_video:
             return [], []
@@ -294,30 +243,22 @@ class PlayerPage(Adw.NavigationPage):
 
     def open_tracks(self):
         audio, subtitles = self._tracks()
-        while child := self.track_list.get_first_child():
-            self.track_list.remove(child)
-        # Side by side when there is room (landscape), stacked otherwise.
-        wide = self.overlay.get_width() >= 600
-        self.track_list.set_orientation(Gtk.Orientation.HORIZONTAL if wide
-                                        else Gtk.Orientation.VERTICAL)
-        self.track_list.set_homogeneous(wide)
+        groups = []
         if len(audio) > 1:
-            self.track_list.append(self._track_group(
-                "Audio", audio, self.stream.audio_index, self.choose_audio))
+            groups.append(("Audio", audio, self.stream.audio_index,
+                           self.choose_audio))
         if subtitles:
             current = self.stream.subtitle_index
             if current is None or current < 0:
                 current = -1
-            self.track_list.append(self._track_group(
-                "Subtitles", [(-1, "Off")] + subtitles, current,
-                self.choose_subtitle))
+            groups.append(("Subtitles", [(-1, "Off")] + subtitles, current,
+                           self.choose_subtitle))
         self._hide_controls()
-        self.sheet.set_can_target(True)
-        self.sheet.set_reveal_child(True)
+        # Side by side when there is room (landscape), stacked otherwise.
+        self.sheet.open(groups, self.overlay.get_width() >= 600)
 
     def close_tracks(self):
-        self.sheet.set_can_target(False)
-        self.sheet.set_reveal_child(False)
+        self.sheet.close()
         self._show_controls()
 
     def choose_audio(self, index):
@@ -356,56 +297,8 @@ class PlayerPage(Adw.NavigationPage):
             self._reload()
         else:
             stream.subtitle_index = index
-            self._load_subtitle()
+            self.subtitle_view.load(self.stream)
             self._report("Progress")
-
-    def _load_subtitle(self):
-        """Fetch the chosen subtitle as SRT, or clear it."""
-        self.subtitle_track = None
-        self.subtitle_label.set_visible(False)
-        path = self.stream.subtitle_path if self.stream else None
-        if not path:
-            if self.stream and (self.stream.subtitle_index or -1) >= 0:
-                log.debug("subtitle %s: nothing to fetch (%s)",
-                          self.stream.subtitle_index,
-                          playback.subtitle_method(self.stream.source,
-                                                   self.stream.subtitle_index))
-            return
-        jellyfin = self.conn.jellyfin
-        wanted = self.stream.subtitle_index
-        log.debug("subtitle %s: fetching %s", wanted, path)
-
-        def fetch():
-            return subtitles.Track(subtitles.parse_srt(jellyfin.text(path)))
-
-        def done(track, error):
-            if self.stopped or not self.stream or self.stream.subtitle_index != wanted:
-                return
-            if error is not None:
-                log.warning("subtitles: %s", error)
-                self.window.toast("Can\u2019t load the subtitles")
-                return
-            log.debug("subtitle %s: %d cues", wanted, len(track.cues))
-            if not track.cues:
-                self.window.toast("The subtitles are empty")
-            self.subtitle_track = track
-            if not self._subtitle_timer:
-                self._subtitle_timer = GLib.timeout_add(SUBTITLE_EVERY,
-                                                        self._update_subtitle)
-        self.conn.call(fetch, done)
-
-    def _update_subtitle(self):
-        if self.subtitle_track is None or self.stopped:
-            self._subtitle_timer = 0
-            self.subtitle_label.set_visible(False)
-            return GLib.SOURCE_REMOVE
-        shown = ""
-        if self.media is not None:
-            shown = self.subtitle_track.at(self.media.position_now() / 1_000_000)
-        if shown != self.subtitle_label.get_label():
-            self.subtitle_label.set_markup(shown)
-        self.subtitle_label.set_visible(bool(shown))
-        return GLib.SOURCE_CONTINUE
 
     def _button(self, icon, label, callback):
         button = Gtk.Button(icon_name=icon, tooltip_text=label)
@@ -453,11 +346,15 @@ class PlayerPage(Adw.NavigationPage):
         if self.item.get("MediaType") == "Audio" and not self._timers:
             self._show_cover()
         self._start_media()
-        self._load_subtitle()
+        self.subtitle_view.load(self.stream)
         self._update_tracks_button()
         if not self._timers:
             self._timers.append(GLib.timeout_add_seconds(REPORT_EVERY,
                                                          self._report_progress))
+            self._timers.append(GLib.timeout_add_seconds(1, self._tick))
+            if self.is_video:
+                self.skipper.load(self.conn.call, self.conn.jellyfin, self.item,
+                                  self._on_extras)
         if not self._inhibit:
             self._inhibit = self.window.get_application().inhibit(
                 self.window, Gtk.ApplicationInhibitFlags.IDLE |
@@ -533,6 +430,7 @@ class PlayerPage(Adw.NavigationPage):
         self.view.set_reveal_bottom_bars(False)
         if self.center is not None:
             self.center.set_reveal_child(False)
+        self.skipper.hide()
 
     def _retry_transcoded(self):
         replace = self._end_stream()
@@ -583,6 +481,9 @@ class PlayerPage(Adw.NavigationPage):
             if not self._seeking:
                 self.scale.set_value(self.position())
             self.position_label.set_label(text.clock(self.position()))
+            self._update_ends()
+            if self.is_video and self.started:
+                self.skipper.update(self.position(), duration)
         if name in ("playing", "prepared"):
             playing = media.get_playing()
             self.play_button.set_icon_name("media-playback-pause-symbolic"
@@ -595,13 +496,66 @@ class PlayerPage(Adw.NavigationPage):
                 self._report("Progress")
             self._show_controls()
         if name == "ended" and media.get_ended():
-            self.window.nav.pop()
+            if self.skipper.wants_next():
+                self.play_next()
+            else:
+                self.window.nav.pop()
+
+    def _update_ends(self):
+        duration = self.duration()
+        ends = text.ends_after(datetime.now(), duration - self.position()) \
+            if duration else ""
+        self.ends_label.set_label(ends)
+        self.ends_label.set_visible(bool(ends))
+
+    def _tick(self):
+        """Once a second: the end time moves on while paused, the up-next
+        card counts down while playing."""
+        if self.stopped:
+            return GLib.SOURCE_REMOVE
+        if self.started and self.media is not None:
+            self._update_ends()
+            if self.media.get_playing():
+                self.skipper.tick()
+        return GLib.SOURCE_CONTINUE
+
+    def _on_extras(self):
+        """Segments and the next episode arrived."""
+        if self.stopped:
+            return
+        self.next_button.set_visible(self.skipper.next_episode is not None)
+        if self.started:
+            self.skipper.update(self.position(), self.duration())
+
+    # --- next episode ----------------------------------------------------
+
+    def play_next(self):
+        """Replace this player by one for the next episode, turned and
+        fullscreen as this one."""
+        episode = self.skipper.next_episode
+        if episode is None or self.stopped:
+            return
+        # Turning is for a portrait window only (the button shows only
+        # then); a player made turned in a landscape one kept re-laying
+        # itself out and starved the main loop (tests/test_ui.py).
+        rotated = self.rotator.props.rotated and self.rotator.props.portrait
+        rotation_fullscreen = self._rotation_fullscreen and rotated
+        self._keep_window = True
+        self._on_hidden()
+        self.window.play_instead(self, episode, rotated=rotated,
+                                 rotation_fullscreen=rotation_fullscreen)
 
     # --- controls ------------------------------------------------------
 
     def toggle_play(self):
         if self.media:
             self.media.set_playing(not self.media.get_playing())
+
+    def seek_to(self, seconds):
+        if self.media and self.media.is_seekable():
+            target = min(max(0, seconds), self.duration() or 1e9)
+            self.media.seek(int(target * 1_000_000))
+        self._show_controls()
 
     def skip(self, seconds, show=True):
         if self.media and self.media.is_seekable():
@@ -663,11 +617,9 @@ class PlayerPage(Adw.NavigationPage):
                                        (rotated or self.rotator.props.portrait))
 
     def _on_tap(self, gesture, n, x, y):
-        if self.sheet.get_reveal_child():
+        if self.sheet.is_open:
             # A tap beside the open track sheet closes it.
-            target = self.overlay.pick(x, y, Gtk.PickFlags.DEFAULT)
-            if target is None or not (target is self.sheet_box or
-                                      target.is_ancestor(self.sheet_box)):
+            if not self.sheet.holds(self.overlay.pick(x, y, Gtk.PickFlags.DEFAULT)):
                 self.close_tracks()
             return
         device = gesture.get_current_event_device()
@@ -714,27 +666,10 @@ class PlayerPage(Adw.NavigationPage):
         self.skip(-seconds if side == "back" else seconds, show=False)
         # The bubble takes the place of the controls, as in phone players.
         self._hide_controls()
-        last, total = self._streak
-        total = total + seconds if last == side else seconds
-        self._streak = (side, total)
-        bubble = self.bubbles[side]
-        bubble.label.set_label(f"{total} s")
-        bubble.set_reveal_child(True)
-        other = self.bubbles["forward" if side == "back" else "back"]
-        other.set_reveal_child(False)
-        if self._feedback_timeout:
-            GLib.source_remove(self._feedback_timeout)
-        self._feedback_timeout = GLib.timeout_add(FEEDBACK_MS, self._end_feedback)
-
-    def _end_feedback(self):
-        self._feedback_timeout = 0
-        self._streak = (None, 0)
-        for bubble in self.bubbles.values():
-            bubble.set_reveal_child(False)
-        return GLib.SOURCE_REMOVE
+        self.seek_bubbles.show(side, seconds)
 
     def _show_controls(self):
-        if self.sheet.get_reveal_child():
+        if self.sheet.is_open:
             # The bars are drawn over the video, so they would cover the
             # open track sheet: they stay hidden until it closes, as in
             # phone players (docs/player-controls.md).
@@ -746,7 +681,8 @@ class PlayerPage(Adw.NavigationPage):
             # Nothing to play or skip yet while the stream starts; the
             # buttons would also cover the waiting message.
             self.center.set_reveal_child(visible and not self.waiting.get_visible())
-        self.subtitle_label.set_margin_bottom(SUBTITLE_MARGIN[visible])
+        self.subtitle_view.set_controls_visible(visible)
+        self.skipper.set_controls_visible(visible)
         self.set_cursor(None)
         if self._hide_timeout:
             GLib.source_remove(self._hide_timeout)
@@ -764,7 +700,8 @@ class PlayerPage(Adw.NavigationPage):
         self.view.set_reveal_bottom_bars(False)
         if self.center is not None:
             self.center.set_reveal_child(False)
-        self.subtitle_label.set_margin_bottom(SUBTITLE_MARGIN[False])
+        self.subtitle_view.set_controls_visible(False)
+        self.skipper.set_controls_visible(False)
         self.set_cursor(Gdk.Cursor.new_from_name("none"))
 
     def _on_key(self, controller, keyval, keycode, state):
@@ -776,7 +713,7 @@ class PlayerPage(Adw.NavigationPage):
             self.skip(SKIP_FORWARD)
         elif keyval in (Gdk.KEY_f, Gdk.KEY_F11):
             self.toggle_fullscreen()
-        elif keyval == Gdk.KEY_Escape and self.sheet.get_reveal_child():
+        elif keyval == Gdk.KEY_Escape and self.sheet.is_open:
             self.close_tracks()
         elif keyval == Gdk.KEY_Escape and self.window.is_fullscreen():
             self.toggle_fullscreen()
@@ -836,45 +773,21 @@ class PlayerPage(Adw.NavigationPage):
         self.stopped = True
         for timer in self._timers:
             GLib.source_remove(timer)
-        for source in (self._hide_timeout, self._single_tap,
-                       self._feedback_timeout, self._subtitle_timer):
+        for source in (self._hide_timeout, self._single_tap):
             if source:
                 GLib.source_remove(source)
-        self._hide_timeout = self._single_tap = self._feedback_timeout = 0
-        self._subtitle_timer = 0
+        self._hide_timeout = self._single_tap = 0
+        self.seek_bubbles.stop()
+        self.subtitle_view.stop()
         if self._inhibit:
             self.window.get_application().uninhibit(self._inhibit)
         self.window.disconnect(self._fullscreen_handler)
-        if self.window.is_fullscreen():
+        if self.window.is_fullscreen() and not self._keep_window:
             self.window.unfullscreen()
         # Answers still on the way are stopped when they arrive.
         self.sessions.close()
         self._stop_stream()
         self.window.after_playback(self.item)
-
-
-def tap_zone(x, width):
-    """Left third, middle or right third of the video."""
-    if width > 0 and x < width / 3:
-        return "back"
-    if width > 0 and x > width * 2 / 3:
-        return "forward"
-    return "center"
-
-
-def tap_action(n, zone, touch):
-    """What the `n`-th quick tap in `zone` does, as phone players do it:
-    on touch, double tap on the sides seeks and every further quick tap
-    seeks again; one tap shows or hides the controls. With a mouse, a
-    click plays or pauses and a double click toggles fullscreen.
-    "wait" means: act only if no second tap follows."""
-    if touch:
-        if zone == "center":
-            return "controls" if n == 1 else None
-        return "wait" if n == 1 else zone
-    if n == 1:
-        return "wait"
-    return "fullscreen" if n == 2 else None
 
 
 def gst_reason(message):

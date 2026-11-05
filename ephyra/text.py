@@ -96,9 +96,14 @@ def played_fraction(item):
 def ends_at(item, now, position=0):
     """"Ends at 22:14" for the remaining run time from `now`
     (a datetime)."""
-    from datetime import timedelta
     total = (item.get("RunTimeTicks") or 0) / TICKS
     if total <= 0:
         return ""
-    end = now + timedelta(seconds=total - position)
+    return ends_after(now, total - position)
+
+
+def ends_after(now, remaining):
+    """"Ends at 22:14" for `remaining` seconds from `now` (a datetime)."""
+    from datetime import timedelta
+    end = now + timedelta(seconds=max(0, remaining))
     return f"Ends at {end:%H:%M}"

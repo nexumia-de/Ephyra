@@ -2,7 +2,7 @@ from gi.repository import Adw, GLib, Gtk
 from phosh_toolkit import proxy_login
 from phosh_toolkit.proxy import MediaProxy
 
-from ephyra import NAME
+from ephyra import NAME, text
 from ephyra import connection as connection_module
 from ephyra.browse import MainPage, SearchPage
 from ephyra.detail import DetailPage
@@ -92,6 +92,16 @@ class Window(Adw.ApplicationWindow):
             self.show_item(item)
             return
         self.nav.push(PlayerPage(self, item, start))
+
+    def play_instead(self, page, item, **carry):
+        """The next episode in place of the player `page`, without an
+        animation: back from it still leads to the page before. `carry`:
+        the rotation of the player before (PlayerPage)."""
+        stack = self.nav.get_navigation_stack()
+        pages = [stack.get_item(i) for i in range(stack.get_n_items())]
+        pages = [p for p in pages if p is not page]
+        pages.append(PlayerPage(self, item, text.resume_seconds(item), **carry))
+        self.nav.replace(pages)
 
     def after_playback(self, item):
         """Positions and played marks changed: reload the pages that show
