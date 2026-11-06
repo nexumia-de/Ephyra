@@ -4,7 +4,7 @@ from gi.repository import Adw, Gio, Gtk, Pango
 
 from phosh_toolkit import route
 
-from ephyra import widgets
+from ephyra import NAME, widgets
 from ephyra.connection import CONNECTING, OFFLINE
 
 # Item types a library grid lists, by the library's collection type.
@@ -34,7 +34,7 @@ class MainPage(Adw.NavigationPage):
         header = Adw.HeaderBar(title_widget=self.sidebar_title)
         menu = Gio.Menu()
         menu.append("_Preferences", "app.preferences")
-        menu.append("_About Ephyra", "app.about")
+        menu.append(f"_About {NAME}", "app.about")
         header.pack_end(Gtk.MenuButton(icon_name="open-menu-symbolic",
                                        menu_model=menu, primary=True,
                                        tooltip_text="Main Menu"))

@@ -1,5 +1,8 @@
 # Directory Update Log
 
+## 2026-11-06
+* **Update**: [App name](decisions/app-name.md): the owner chose the visible name **Home Cinema** (#25). `.desktop` `Name` (plus `GenericName=Media Player` and the keyword `ephyra`), metainfo `<name>`, window title, About dialog, welcome page and sign-out text say Home Cinema, the nightly "Home Cinema (Nightly)"; repository, app id, package, docs, the Jellyfin client name and the `User-Agent` keep the code name Ephyra.
+
 ## 2026-11-05
 * **Update**: [Player controls](player-controls.md#end-time-skipping-and-the-next-episode), at the owner's request: "Ends at …" next to the duration; a Next Episode button top right; Skip Intro / Recap / Preview / Ad / Credits from Jellyfin 10.10's `/MediaSegments` (read in `MediaSegmentsController` and `MediaSegmentType` at `4fbb2a2`; 404 on 10.9 means none); an up-next card at the credits (or 30 s before the end) with a 10 s countdown, Play Now and Cancel, closing issue #4. The next episode comes from `/Shows/{id}/Episodes?startItemId=…` (`TvShowsController.GetEpisodes`). The player page is replaced without animation and keeps fullscreen and its rotation; a player made turned in a landscape window starved the main loop, so rotation is carried only in portrait. `player.py` shrank from 896 to about 810 lines: the track sheet, subtitle drawing and double-tap feedback moved into `track_sheet.py`, `subtitle_view.py` and `taps.py`. The demo server lists a series' episodes with `startItemId` and serves segments; new `tests/test_segments.py` and a UI test.
 

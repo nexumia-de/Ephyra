@@ -1,6 +1,8 @@
-# Ephyra
+# Home Cinema (Ephyra)
 
-Named after the *ephyra*, the young stage of a jellyfish.
+*Home Cinema* is the name you see in the app grid; the code name
+*Ephyra* is used for the repository, app id and package. It is named
+after the *ephyra*, the young stage of a jellyfish.
 
 Adaptive GTK4/libadwaita client for [Jellyfin](https://jellyfin.org/)
 media servers on [Phosh](https://phosh.mobi/) phones and the desktop,
@@ -26,7 +28,7 @@ project.
 
 After the first release, on the phone open <https://flatpak.nexumia.de/>
 and tap Ephyra; GNOME Software installs it and keeps it updated.
-*Ephyra (Nightly)* follows every push to `main`. See
+*Home Cinema (Nightly)* follows every push to `main`. See
 [docs/release-channels.md](docs/release-channels.md).
 
 ## Support

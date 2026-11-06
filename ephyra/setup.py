@@ -13,7 +13,7 @@ def connection_form(window, account, toast=None):
         window, account, settings.certificates(), connection.probe_with,
         USER_AGENT,
         server_description="The address you use to reach Jellyfin from anywhere",
-        home_description="On these Wi-Fi networks Ephyra talks to the server "
+        home_description="On these Wi-Fi networks Home Cinema talks to the server "
                          "directly. Leave the local address empty to always "
                          "use the server address.",
         toast=toast)
@@ -38,7 +38,7 @@ class SetupPage(Adw.NavigationPage):
         intro = Adw.PreferencesGroup()
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         box.append(Gtk.Image(icon_name=window.app_icon, pixel_size=96))
-        title = Gtk.Label(label="Welcome to Ephyra", wrap=True,
+        title = Gtk.Label(label="Welcome to Home Cinema", wrap=True,
                           justify=Gtk.Justification.CENTER)
         title.add_css_class("title-1")
         box.append(title)

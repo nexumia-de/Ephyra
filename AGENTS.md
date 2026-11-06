@@ -30,7 +30,9 @@ as well, with the exceptions below.
 
 ## App rules
 
-- App id: `de.nexumia.Ephyra`.
+- App id: `de.nexumia.Ephyra`. Visible name: **Home Cinema** (chosen by
+  the owner on 2026-11-06, [decision](docs/decisions/app-name.md)); the
+  code name Ephyra stays for the repository, app id, package and docs.
 - Plan: work items are [issues](https://github.com/nexumia-de/ephyra/issues)
   in [milestones](https://github.com/nexumia-de/ephyra/milestones); goals
   per milestone are in [docs/roadmap.md](docs/roadmap.md).
