@@ -104,7 +104,7 @@ class PreferencesDialog(Adw.PreferencesDialog):
     def _on_sign_out(self, *_):
         dialog = Adw.AlertDialog(
             heading="Sign Out?",
-            body="Ephyra forgets your access token. The server address and "
+            body="Home Cinema forgets your access token. The server address and "
                  "certificate stay.")
         dialog.add_response("cancel", "Cancel")
         dialog.add_response("sign-out", "Sign Out")

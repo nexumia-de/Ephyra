@@ -70,11 +70,11 @@ configure_file(
 
 if nightly
   # The stable files in data/ stay the only source; the nightly app gets
-  # its own id and the name "Ephyra (Nightly)".
+  # its own id and the name "Home Cinema (Nightly)".
   sed = find_program('sed')
   variant = [sed, '-e', 's/' + base_id + '/' + app_id + '/g',
-             '-e', 's/^Name=Ephyra$/Name=Ephyra (Nightly)/',
-             '-e', 's|<name>Ephyra</name>|<name>Ephyra (Nightly)</name>|',
+             '-e', 's/^Name=Home Cinema$/Name=Home Cinema (Nightly)/',
+             '-e', 's|<name>Home Cinema</name>|<name>Home Cinema (Nightly)</name>|',
              '@INPUT@']
   desktop = configure_file(input: 'data' / base_id + '.desktop',
     output: app_id + '.desktop', command: variant, capture: true)

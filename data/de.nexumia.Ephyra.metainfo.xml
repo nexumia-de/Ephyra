@@ -3,11 +3,11 @@
   <id>de.nexumia.Ephyra</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>AGPL-3.0-or-later</project_license>
-  <name>Ephyra</name>
+  <name>Home Cinema</name>
   <summary>Watch your Jellyfin library</summary>
   <description>
     <p>
-      Ephyra plays the movies, shows and music of your own Jellyfin
+      Home Cinema plays the movies, shows and music of your own Jellyfin
       server on a Phosh phone and on the desktop.
     </p>
     <ul>
@@ -18,7 +18,7 @@
       <li>The server converts videos the phone can't play</li>
     </ul>
     <p>
-      Ephyra is an independent project and not affiliated with the
+      Home Cinema is an independent project and not affiliated with the
       Jellyfin project.
     </p>
   </description>

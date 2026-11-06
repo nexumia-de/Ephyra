@@ -1,11 +1,12 @@
 [Desktop Entry]
 Type=Application
-Name=Ephyra
+Name=Home Cinema
+GenericName=Media Player
 Comment=Watch your Jellyfin library
 Exec=ephyra
 Icon=de.nexumia.Ephyra
 Terminal=false
 Categories=GTK;AudioVideo;Video;Player;
-Keywords=jellyfin;media;movies;shows;tv;series;video;music;stream;
+Keywords=ephyra;jellyfin;media;movies;shows;tv;series;video;music;stream;
 StartupNotify=true
 X-Purism-FormFactor=Workstation;Mobile;

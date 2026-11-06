@@ -9,7 +9,7 @@ VERSION = "0.1.0"
 # The nightly app is built from every push to main
 # (docs/release-channels.md).
 NIGHTLY = APP_ID.endswith(".Devel")
-NAME = "Ephyra (Nightly)" if NIGHTLY else "Ephyra"
+NAME = "Home Cinema (Nightly)" if NIGHTLY else "Home Cinema"
 # About dialog, e.g. "0.1.0 (main · 8534d2c)" for a nightly build.
 VERSION_LABEL = f"{VERSION} ({BUILD_LABEL})" if BUILD_LABEL else VERSION
 REPO_URL = "https://github.com/nexumia-de/ephyra"
